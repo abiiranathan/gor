@@ -887,3 +887,113 @@ func BenchmarkRouterFullCycle(b *testing.B) {
 		}
 	}
 }
+
+/*
+
+func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
+	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		f, err := fs.Open(path)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		defer f.Close()
+
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			http.NotFound(w, req)
+			return
+		}
+
+		http.ServeContent(w, req, path, stat.ModTime(), f)
+	}))
+}
+
+// Serve favicon.ico from the file system fs at path.
+func (r *Router) FaviconFS(fs http.FileSystem, path string) {
+	r.Get("/favicon.ico", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		f, err := fs.Open(path)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		defer f.Close()
+
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			http.NotFound(w, req)
+			return
+		}
+		http.ServeContent(w, req, path, stat.ModTime(), f)
+	}))
+}
+
+*/
+
+func TestRouterFileFS(t *testing.T) {
+	dirname, err := os.MkdirTemp("", "assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dirname)
+
+	file := filepath.Join(dirname, "test.txt")
+	err = os.WriteFile(file, []byte("hello world"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := egor.NewRouter()
+	r.FileFS(http.Dir(dirname), "/static", "test.txt")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/static", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	data, err := io.ReadAll(w.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != "hello world" {
+		t.Errorf("expected hello world, got %s", string(data))
+	}
+}
+
+func TestRouterFaviconFS(t *testing.T) {
+	dirname, err := os.MkdirTemp("", "assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dirname)
+
+	file := filepath.Join(dirname, "favicon.ico")
+	err = os.WriteFile(file, []byte("hello world"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := egor.NewRouter()
+	r.FaviconFS(http.Dir(dirname), "favicon.ico")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/favicon.ico", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	data, err := io.ReadAll(w.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != "hello world" {
+		t.Errorf("expected hello world, got %s", string(data))
+	}
+}

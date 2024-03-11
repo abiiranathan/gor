@@ -325,6 +325,44 @@ func (r *Router) File(path, file string) {
 	})
 }
 
+func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
+	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		f, err := fs.Open(path)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		defer f.Close()
+
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			http.NotFound(w, req)
+			return
+		}
+
+		http.ServeContent(w, req, path, stat.ModTime(), f)
+	}))
+}
+
+// Serve favicon.ico from the file system fs at path.
+func (r *Router) FaviconFS(fs http.FileSystem, path string) {
+	r.Get("/favicon.ico", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		f, err := fs.Open(path)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		defer f.Close()
+
+		stat, err := f.Stat()
+		if err != nil || stat.IsDir() {
+			http.NotFound(w, req)
+			return
+		}
+		http.ServeContent(w, req, path, stat.ModTime(), f)
+	}))
+}
+
 // Like Static but for http.FileSystem.
 // Use this to serve embedded assets with go/embed.
 func (r *Router) StaticFS(prefix string, fs http.FileSystem) {

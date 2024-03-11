@@ -39,6 +39,10 @@ func Etag(skip ...func(r *http.Request) bool) egor.Middleware {
 				}
 			}
 
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				skipEtag = true
+			}
+
 			// Skip the middleware if the request matches the skip conditions
 			if skipEtag {
 				next.ServeHTTP(w, r)
