@@ -509,7 +509,7 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 
 // =========== TEMPLATE FUNCTIONS ===========
 
-func (r *Router) renderTemplate(w http.ResponseWriter, name string, data map[string]any) error {
+func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) error {
 	buf := new(bytes.Buffer)
 	err := r.template.ExecuteTemplate(buf, name, data)
 	if err != nil {
@@ -528,8 +528,11 @@ func (r *Router) renderTemplate(w http.ResponseWriter, name string, data map[str
 		return err
 	}
 
-	w.Header().Set("Content-Type", ContentTypeHTML)
-	w.WriteHeader(http.StatusOK)
+	if writer, ok := w.(http.ResponseWriter); ok {
+		writer.Header().Set("Content-Type", ContentTypeHTML)
+		writer.WriteHeader(http.StatusOK)
+	}
+
 	_, err = w.Write(finalBuf.Bytes())
 	return err
 }
@@ -537,7 +540,7 @@ func (r *Router) renderTemplate(w http.ResponseWriter, name string, data map[str
 // Render the template tmpl with the data. If no template is configured, Render will panic.
 // data is a map such that it can be extended with
 // the request context keys if passContextToViews is set to true.
-func (r *Router) Render(w http.ResponseWriter, req *http.Request, name string, data map[string]any) error {
+func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[string]any) error {
 	if r.template == nil {
 		return fmt.Errorf("template is not set")
 	}
