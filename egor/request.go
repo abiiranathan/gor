@@ -74,7 +74,7 @@ func SendError(w http.ResponseWriter, err error, status int) {
 func SendJSONError(w http.ResponseWriter, key, s string, status int) {
 	w.Header().Set("Content-Type", ContentTypeJSON)
 	w.WriteHeader(status)
-	_, err := w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s)))
+	_, err := w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s))) // json.Encoder appends a newline
 	if err != nil {
 		log.Println(err)
 	}
