@@ -565,7 +565,7 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 
 // Render a template of given name and pass the data to it.
 // Make sure you are using egor.Router. Otherwise this function will panic.
-func Render(w http.ResponseWriter, req *http.Request, name string, data map[string]any) error {
+func Render(w io.Writer, req *http.Request, name string, data map[string]any) error {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
 		panic("You are not using egor.Router. You cannot use this function")
