@@ -67,10 +67,10 @@ func BodyParser(req *http.Request, v interface{}) error {
 
 	contentType := GetContentType(req)
 
-	if contentType == "application/json" {
+	if contentType == ContentTypeJSON {
 		decoder := json.NewDecoder(req.Body)
 		return decoder.Decode(v)
-	} else if contentType == "application/x-www-form-urlencoded" {
+	} else if contentType == ContentTypeXForm {
 		err := req.ParseForm()
 		if err != nil {
 			return err
@@ -85,7 +85,7 @@ func BodyParser(req *http.Request, v interface{}) error {
 			}
 		}
 		return parseFormData(data, v)
-	} else if contentType == "multipart/form-data" {
+	} else if contentType == ContentTypeMultipartForm {
 		form, err := ParseMultipartForm(req)
 		if err != nil {
 			return err
@@ -96,7 +96,7 @@ func BodyParser(req *http.Request, v interface{}) error {
 			data[k] = v[0]
 		}
 		return parseFormData(data, v)
-	} else if contentType == "application/xml" {
+	} else if contentType == ContentTypeXML {
 		xmlDecoder := xml.NewDecoder(req.Body)
 		return xmlDecoder.Decode(v)
 	} else {

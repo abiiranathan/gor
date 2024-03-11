@@ -66,7 +66,7 @@ func TestSendString(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	// check content type
-	if w.Header().Get("Content-Type") != ContentTypePlainText {
+	if w.Header().Get("Content-Type") != ContentTypeText {
 		t.Errorf("Content-Type is not text/plain")
 	}
 
@@ -100,7 +100,7 @@ func TestSendFile(t *testing.T) {
 	r := NewRouter()
 
 	r.Get("/sendfile", func(w http.ResponseWriter, req *http.Request) {
-		SendFile(w, req, "helpers_test.go")
+		SendFile(w, req, "request_test.go")
 	})
 
 	req := httptest.NewRequest("GET", "/sendfile", nil)

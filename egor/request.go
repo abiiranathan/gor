@@ -16,11 +16,11 @@ import (
 const (
 	ContentTypeJSON          string = "application/json"
 	ContentTypeXML           string = "application/xml"
-	ContentTypeForm          string = "application/x-www-form-urlencoded"
+	ContentTypeXForm         string = "application/x-www-form-urlencoded"
 	ContentTypeMultipartForm string = "multipart/form-data"
 	ContentTypeHTML          string = "text/html"
 	ContentTypeCSV           string = "text/csv"
-	ContentTypePlainText     string = "text/plain"
+	ContentTypeText          string = "text/plain"
 	ContentTypeEventStream   string = "text/event-stream"
 )
 
@@ -55,7 +55,7 @@ func SendFile(w http.ResponseWriter, req *http.Request, file string) {
 }
 
 func SendString(w http.ResponseWriter, s string) error {
-	w.Header().Set("Content-Type", ContentTypePlainText)
+	w.Header().Set("Content-Type", ContentTypeText)
 	_, err := w.Write([]byte(s))
 	return err
 }
