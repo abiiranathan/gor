@@ -337,17 +337,22 @@ func (r *Router) Static(prefix, dir string) {
 		prefix = prefix + "/"
 	}
 
-	r.mux.HandleFunc(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	var h http.HandlerFunc = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
 		http.ServeFile(w, req, path)
-	}))
+	})
+
+	r.mux.Handle(prefix, r.chain(r.globalMiddlewares, h))
 }
 
 // Wrapper around http.ServeFile.
 func (r *Router) File(path, file string) {
-	r.Get(path, func(w http.ResponseWriter, req *http.Request) {
+	var hf http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
 		http.ServeFile(w, req, file)
-	})
+	}
+
+	handler := r.chain(r.globalMiddlewares, hf)
+	r.Get(path, handler.ServeHTTP)
 }
 
 func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
@@ -372,7 +377,7 @@ func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
 
 // Serve favicon.ico from the file system fs at path.
 func (r *Router) FaviconFS(fs http.FileSystem, path string) {
-	r.Get("/favicon.ico", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	var handler http.HandlerFunc = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		f, err := fs.Open(path)
 		if err != nil {
 			http.NotFound(w, req)
@@ -386,8 +391,11 @@ func (r *Router) FaviconFS(fs http.FileSystem, path string) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "image/x-icon")
 		http.ServeContent(w, req, path, stat.ModTime(), f)
-	}))
+	})
+
+	r.Get("/favicon.ico", handler)
 }
 
 // Like Static but for http.FileSystem.
@@ -396,28 +404,12 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
+	// Create file server for the http.FileSystem
+	handler := http.FileServer(fs)
 
-	r.mux.HandleFunc(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		f, err := fs.Open(req.URL.Path)
-		if err != nil {
-			http.NotFound(w, req)
-			return
-		}
-		defer f.Close()
-
-		stat, err := f.Stat()
-		if err != nil {
-			http.NotFound(w, req)
-			return
-		}
-
-		if stat.IsDir() {
-			http.NotFound(w, req)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		http.ServeContent(w, req, req.URL.Path, stat.ModTime(), f)
-	}))
+	// Apply global middleware
+	finalHandler := r.chain(r.globalMiddlewares, handler)
+	r.mux.Handle(prefix, finalHandler)
 }
 
 // creates a new http.FileSystem from the embed.FS
@@ -467,8 +459,9 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 		panic("Unable to read contents of " + indexFile)
 	}
 
-	// Create a handler to server files.
-	handler := http.FileServer(buildFS(frontendFS, buildPath))
+	// Apply global middleware
+	fsHandler := http.FileServer(buildFS(frontendFS, buildPath))
+	handler := r.chain(r.globalMiddlewares, fsHandler)
 
 	r.mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
 		// check skip. Important for API routes
@@ -534,7 +527,6 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 }
 
 // =========== TEMPLATE FUNCTIONS ===========
-
 func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) error {
 	// if name is missing the extension, add it(assume it's an html file)
 	if filepath.Ext(name) == "" {
