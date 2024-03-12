@@ -31,8 +31,16 @@ import (
 	"sync"
 )
 
-// If set, the router will only match the root path with "/"
-var StrictHome = true
+var (
+	// Match only the root path with "/" contrary to the default behavior which matches everything.
+	// The default is true.
+	StrictHome = true
+
+	// Remove trailing slashes from the pattern (and req.URL.Path) except for the root path.
+	// This means that if you register "/test/" and a request is made to "/test" or "/test/", it will not match.
+	// The default is true.
+	NoTrailingSlash = true
+)
 
 type contextType string
 
@@ -171,6 +179,11 @@ var ctxPool = sync.Pool{
 
 // Implementation for http.Handler.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// if no trailing slash is allowed, remove it
+	if NoTrailingSlash && req.URL.Path != "/" {
+		req.URL.Path = strings.TrimSuffix(req.URL.Path, "/")
+	}
+
 	writer := &ResponseWriter{
 		ResponseWriter: w,
 		status:         http.StatusOK,
@@ -241,6 +254,11 @@ func (r *CTX) Get(key any) any {
 func (r *Router) registerRoute(method, path string, handler http.HandlerFunc, middlewares []Middleware) {
 	if StrictHome && path == "/" {
 		path = path + "{$}" // Match only the root path
+	}
+
+	// remove trailing slashes
+	if NoTrailingSlash && path != "/" {
+		path = strings.TrimSuffix(path, "/")
 	}
 
 	prefix := fmt.Sprintf("%s %s", method, path)

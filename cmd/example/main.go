@@ -15,6 +15,8 @@ import (
 var static embed.FS
 
 func main() {
+	// Create a new router
+	egor.NoTrailingSlash = true
 	mux := egor.NewRouter()
 	logger := middleware.NewLogger(os.Stderr)
 
@@ -25,7 +27,7 @@ func main() {
 
 	mux.StaticFS("/static", http.FS(static))
 
-	mux.Get("/test/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.Get("/test/{id}/", func(w http.ResponseWriter, r *http.Request) {
 		egor.Redirect(w, r, "/redirect")
 
 		// id := r.PathValue("id")
