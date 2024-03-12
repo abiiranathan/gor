@@ -96,15 +96,12 @@ func GetContentType(req *http.Request) string {
 	return parts[0]
 }
 
+// Redirects the request to the given url.
+// Default status code is 302 (http.StatusFound)
 func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int) {
-	var statusCode = http.StatusMovedPermanently
+	var statusCode = http.StatusFound // Assume Afterpost request.
 	if len(status) > 0 {
 		statusCode = status[0]
-	}
-
-	// check if the url is relative
-	if url[0] == '/' {
-		url = req.Host + url
 	}
 	http.Redirect(w, req, url, statusCode)
 }
