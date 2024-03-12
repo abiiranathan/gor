@@ -39,6 +39,8 @@ func main() {
 		fmt.Fprintf(w, "Redirected")
 	})
 
+	mux.FaviconFS(http.FS(static), "static/favicon.ico")
+
 	opts := []egor.ServerOption{
 		egor.WithReadTimeout(time.Second * 10),
 		egor.WithWriteTimeout(time.Second * 15),

@@ -390,9 +390,21 @@ func (r *Router) FaviconFS(fs http.FileSystem, path string) {
 			http.NotFound(w, req)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+
+		var data = make([]byte, stat.Size())
+		_, err = f.Read(data)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+
 		w.Header().Set("Content-Type", "image/x-icon")
-		http.ServeContent(w, req, path, stat.ModTime(), f)
+		w.Header().Set("Cache-Control", "public, max-age=31536000")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+		// content disposition
+		w.Header().Set("Content-Disposition", "inline; filename=favicon.ico")
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
 	})
 
 	r.Get("/favicon.ico", handler)
