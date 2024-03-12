@@ -515,6 +515,11 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 // =========== TEMPLATE FUNCTIONS ===========
 
 func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) error {
+	// if name is missing the extension, add it(assume it's an html file)
+	if filepath.Ext(name) == "" {
+		name = name + ".html"
+	}
+
 	buf := new(bytes.Buffer)
 	err := r.template.ExecuteTemplate(buf, name, data)
 	if err != nil {
@@ -545,6 +550,7 @@ func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) e
 // Render the template tmpl with the data. If no template is configured, Render will panic.
 // data is a map such that it can be extended with
 // the request context keys if passContextToViews is set to true.
+// If a file extension is missing, it will be appended as ".html".
 func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[string]any) {
 	if r.template == nil {
 		panic("No template is configured")
@@ -589,6 +595,7 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 
 // Render a template of given name and pass the data to it.
 // Make sure you are using egor.Router. Otherwise this function will panic.
+// If a file extension is missing, it will be appended as ".html".
 func Render(w io.Writer, req *http.Request, name string, data map[string]any) {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
