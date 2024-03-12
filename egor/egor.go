@@ -100,12 +100,18 @@ type ResponseWriter struct {
 	http.ResponseWriter     // The embedded response writer.
 	status              int // response status code
 
+	// track if status already sent
+	statusSent bool
 }
 
 // WriteHeader sends an HTTP response header with the provided status code.
 func (w *ResponseWriter) WriteHeader(status int) {
+	if w.statusSent {
+		return
+	}
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
+	w.statusSent = true
 }
 
 // Status returns the response status code.
@@ -215,7 +221,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			r.NotFoundHandler.ServeHTTP(writer, req)
 			return
 		}
-		http.Error(w, "404 page not found", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -331,11 +337,10 @@ func (r *Router) Static(prefix, dir string) {
 		prefix = prefix + "/"
 	}
 
-	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	r.mux.HandleFunc(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
 		http.ServeFile(w, req, path)
 	}))
-
 }
 
 // Wrapper around http.ServeFile.
@@ -392,7 +397,7 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 		prefix = prefix + "/"
 	}
 
-	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	r.mux.HandleFunc(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		f, err := fs.Open(req.URL.Path)
 		if err != nil {
 			http.NotFound(w, req)

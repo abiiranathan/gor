@@ -11,7 +11,7 @@ import (
 	"github.com/abiiranathan/egor/egor/middleware"
 )
 
-//go:embed static
+//go:embed static/*
 var static embed.FS
 
 func main() {
@@ -26,6 +26,7 @@ func main() {
 	mux.Use(middleware.Cors())
 
 	mux.StaticFS("/static", http.FS(static))
+	// mux.Static("/static/", "static")
 
 	mux.Get("/test/{id}/", func(w http.ResponseWriter, r *http.Request) {
 		egor.Redirect(w, r, "/redirect")
