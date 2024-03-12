@@ -261,6 +261,94 @@ func TestSetFieldMultipartForm(t *testing.T) {
 
 }
 
+// Test multipart form with ignores empty values
+func TestSetFieldMultipartFormEmpty(t *testing.T) {
+	type TestStruct struct {
+		Field1 string
+		Field2 int
+	}
+
+	// send an actual form using httptest
+	r := NewRouter()
+	r.Post("/test", func(w http.ResponseWriter, r *http.Request) {
+		var test TestStruct
+		if err := BodyParser(r, &test); err != nil {
+			t.Errorf("BodyParser() error = %v", err)
+			return
+		}
+
+		if test.Field1 != "" {
+			t.Errorf("BodyParser() = %q, want %q", test.Field1, "")
+		}
+
+		if test.Field2 != 0 {
+			t.Errorf("BodyParser() = %v, want %v", test.Field2, 0)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// send a multipart form
+	formData := url.Values{
+		"field1": {""},
+		"field2": {""},
+	}
+
+	// Encode the form data
+	formEncoded := formData.Encode()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(formEncoded))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("BodyParser() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+// empty form fields raise an error if required
+func TestSetFieldMultipartFormRequired(t *testing.T) {
+	type TestStruct struct {
+		Field1 string  `form:"field1,required"`
+		Field2 int     `form:"field2,required"`
+		Fields float32 `form:"fields" required:"true"` // required tag is also allowed.
+	}
+
+	// send an actual form using httptest
+	r := NewRouter()
+	r.Post("/test", func(w http.ResponseWriter, r *http.Request) {
+		var test TestStruct
+		if err := BodyParser(r, &test); err == nil {
+			t.Errorf("BodyParser() error = %v, want %v", err, "required field field2 is empty")
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// send a multipart form
+	formData := url.Values{
+		"field1": {"test"},
+	}
+
+	// Encode the form data
+	formEncoded := formData.Encode()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(formEncoded))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("BodyParser() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
 // test application xml
 func TestBodyParserXML(t *testing.T) {
 	type TestStruct struct {

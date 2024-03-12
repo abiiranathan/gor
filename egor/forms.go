@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -77,11 +78,23 @@ func BodyParser(req *http.Request, v interface{}) error {
 		}
 
 		data := make(map[string]interface{})
+
 		for k, v := range req.Form {
-			if len(v) == 1 {
+			vLen := len(v)
+			if vLen == 0 {
+				continue // The struct will have the default value
+			}
+
+			if vLen == 1 {
+				// skip empty values. Parsing "" to int, float, bool, etc causes errors.
+				// Ignore to keep the default value of the struct field.
+				// The user can check if the field is empty using the required tag.
+				if v[0] == "" {
+					continue
+				}
 				data[k] = v[0] // if there's only one value.
 			} else {
-				data[k] = v // array of values or empty array
+				data[k] = v // array of values
 			}
 		}
 		return parseFormData(data, v)
@@ -93,7 +106,22 @@ func BodyParser(req *http.Request, v interface{}) error {
 
 		data := make(map[string]interface{})
 		for k, v := range form.Value {
-			data[k] = v[0]
+			vLen := len(v)
+			if vLen == 0 {
+				continue // The struct will have the default value
+			}
+
+			if vLen == 1 {
+				// skip empty values. Parsing "" to int, float, bool, etc causes errors.
+				// Ignore to keep the default value of the struct field.
+				// The user can check if the field is empty using the required tag.
+				if v[0] == "" {
+					continue
+				}
+				data[k] = v[0] // if there's only one value.
+			} else {
+				data[k] = v // array of values
+			}
 		}
 		return parseFormData(data, v)
 	} else if contentType == ContentTypeXML {
@@ -142,7 +170,7 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 		// Take tag name to be the first in the tagList
 		tag = tagList[0]
 
-		required := field.Tag.Get("required") == "true"
+		required := slices.Contains(tagList, "required") || field.Tag.Get("required") == "true"
 		value, ok := data[tag]
 		if !ok {
 			if required {
