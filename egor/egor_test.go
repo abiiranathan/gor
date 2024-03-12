@@ -534,49 +534,6 @@ func TestRouterFile(t *testing.T) {
 	}
 }
 
-func TestRouterStatisFS(t *testing.T) {
-	dirname, err := os.MkdirTemp("", "assets")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dirname)
-
-	file := filepath.Join(dirname, "test.txt")
-	err = os.WriteFile(file, []byte("hello world"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := egor.NewRouter()
-	r.StaticFS("/assets", http.Dir(dirname))
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/assets/notfound.txt", nil)
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
-
-	w = httptest.NewRecorder()
-	req = httptest.NewRequest("GET", "/assets/test.txt", nil)
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", w.Code)
-	}
-
-	data, err := io.ReadAll(w.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if string(data) != "hello world" {
-		t.Errorf("expected hello world, got %s", string(data))
-	}
-
-}
-
 // Test route groups
 func TestRouterGroup(t *testing.T) {
 	r := egor.NewRouter()

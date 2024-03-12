@@ -134,6 +134,14 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 			tag = SnakeCase(field.Name)
 		}
 
+		tagList := strings.Split(tag, ",")
+		for i := range tagList {
+			tagList[i] = strings.TrimSpace(tagList[i])
+		}
+
+		// Take tag name to be the first in the tagList
+		tag = tagList[0]
+
 		required := field.Tag.Get("required") == "true"
 		value, ok := data[tag]
 		if !ok {

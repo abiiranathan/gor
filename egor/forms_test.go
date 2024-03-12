@@ -209,9 +209,9 @@ func TestSnakecase(t *testing.T) {
 // test multipart form with []int and []string
 func TestSetFieldMultipartForm(t *testing.T) {
 	type TestStruct struct {
-		Ints    []int     `form:"ints"`
-		Strings []string  `form:"strings"`
-		Floats  []float64 `form:"floats"`
+		Ints    []int     // use default snake case tag(ints)
+		Strings []string  `form:"strings,omitempty"` // field name must appear first.
+		Floats  []float64 `form:"floats,omitempty"`
 	}
 
 	// send an actual form using httptest
