@@ -244,10 +244,6 @@ func (r *Router) registerRoute(method, path string, handler http.HandlerFunc, mi
 	}
 
 	prefix := fmt.Sprintf("%s %s", method, path)
-	newRoute := &route{prefix: prefix, handler: handler, middlewares: middlewares}
-
-	// add the route to the routes map
-	r.routes[prefix] = newRoute
 
 	// chain the route middlewares
 	var h http.Handler
@@ -255,6 +251,11 @@ func (r *Router) registerRoute(method, path string, handler http.HandlerFunc, mi
 
 	// chain the global middlewares
 	h = r.chain(r.globalMiddlewares, h)
+
+	newRoute := &route{prefix: prefix, middlewares: middlewares, handler: h}
+
+	// add the route to the routes map
+	r.routes[prefix] = newRoute
 
 	r.mux.Handle(prefix, h)
 }
@@ -311,6 +312,7 @@ func (r *Router) Static(prefix, dir string) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
+
 	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
 		http.ServeFile(w, req, path)
@@ -340,6 +342,7 @@ func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
 		http.ServeContent(w, req, path, stat.ModTime(), f)
 	}))
 }
@@ -359,6 +362,7 @@ func (r *Router) FaviconFS(fs http.FileSystem, path string) {
 			http.NotFound(w, req)
 			return
 		}
+		w.WriteHeader(http.StatusOK)
 		http.ServeContent(w, req, path, stat.ModTime(), f)
 	}))
 }
@@ -390,6 +394,7 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 			http.NotFound(w, req)
 			return
 		}
+		w.WriteHeader(http.StatusOK)
 		http.ServeContent(w, req, path, stat.ModTime(), f)
 	}))
 }
@@ -593,23 +598,12 @@ func Render(w io.Writer, req *http.Request, name string, data map[string]any) {
 	ctx.Router.Render(w, req, name, data)
 }
 
-func (r *Router) Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int) {
-	var statusCode = http.StatusMovedPermanently
-	if len(status) > 0 {
-		statusCode = status[0]
-	}
-
-	// check if the url is relative
-	if url[0] == '/' {
-		url = req.Host + url
-	}
-
-	w.Header().Set("Location", url)
-	w.WriteHeader(statusCode)
+func (r *Router) Redirect(w http.ResponseWriter, req *http.Request, url string, status ...int) {
+	Redirect(w, req, url, status...)
 }
 
-func (r *Router) RedirectRoute(req *http.Request, w http.ResponseWriter, pathname string, status ...int) {
-	var statusCode = http.StatusMovedPermanently
+func (r *Router) RedirectRoute(w http.ResponseWriter, req *http.Request, pathname string, status ...int) {
+	var statusCode = http.StatusSeeOther
 	if len(status) > 0 {
 		statusCode = status[0]
 	}

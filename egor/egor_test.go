@@ -679,7 +679,7 @@ func TestRouterNestedGroup(t *testing.T) {
 func TestRouterRedirect(t *testing.T) {
 	r := egor.NewRouter()
 	r.Get("/redirect1", func(w http.ResponseWriter, req *http.Request) {
-		egor.Redirect(req, w, "/redirect2", http.StatusFound)
+		egor.Redirect(w, req, "/redirect2", http.StatusFound)
 	})
 
 	r.Get("/redirect2", func(w http.ResponseWriter, req *http.Request) {
@@ -700,7 +700,7 @@ func TestRouterRedirect(t *testing.T) {
 func TestRouterRedirectRoute(t *testing.T) {
 	r := egor.NewRouter()
 	r.Get("/redirect_route1", func(w http.ResponseWriter, req *http.Request) {
-		r.RedirectRoute(req, w, "/redirect_route2", http.StatusFound)
+		r.RedirectRoute(w, req, "/redirect_route2", http.StatusFound)
 	})
 
 	r.Get("/redirect_route2", func(w http.ResponseWriter, req *http.Request) {

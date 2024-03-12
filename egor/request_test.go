@@ -191,7 +191,7 @@ func TestRedirect(t *testing.T) {
 	r := NewRouter()
 
 	r.Get("/startpage", func(w http.ResponseWriter, req *http.Request) {
-		Redirect(req, w, "/redirected", http.StatusFound)
+		Redirect(w, req, "/redirected", http.StatusFound)
 	})
 
 	req := httptest.NewRequest("GET", "/startpage", nil)

@@ -20,7 +20,7 @@ func main() {
 	mux.Use(middleware.Cors())
 
 	mux.Get("/test/{id}", func(w http.ResponseWriter, r *http.Request) {
-		egor.Redirect(r, w, "/redirect")
+		egor.Redirect(w, r, "/redirect")
 
 		// id := r.PathValue("id")
 		// fmt.Fprintf(w, "Hello, you lucky number is %s!\n", id)

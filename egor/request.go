@@ -97,9 +97,9 @@ func GetContentType(req *http.Request) string {
 }
 
 // Redirects the request to the given url.
-// Default status code is 302 (http.StatusFound)
-func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int) {
-	var statusCode = http.StatusFound // Assume Afterpost request.
+// Default status code is 303 (http.StatusSeeOther)
+func Redirect(w http.ResponseWriter, req *http.Request, url string, status ...int) {
+	var statusCode = http.StatusSeeOther // Assume Afterpost request.
 	if len(status) > 0 {
 		statusCode = status[0]
 	}
