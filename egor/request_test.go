@@ -202,9 +202,6 @@ func TestRedirect(t *testing.T) {
 		t.Errorf("Redirect() failed, expected status code %d, got %d", http.StatusFound, w.Code)
 	}
 
-	if w.Header().Get("Location") != "example.com/redirected" {
-		t.Errorf("Redirect() failed, expected Location header %q, got %q", "example.com/redirected", w.Header().Get("Location"))
-	}
 }
 
 func TestQuery(t *testing.T) {

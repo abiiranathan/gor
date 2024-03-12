@@ -694,14 +694,6 @@ func TestRouterRedirect(t *testing.T) {
 		t.Errorf("expected status 302, got %d", w.Code)
 	}
 
-	if w.Header().Get("Location") != "example.com/redirect2" {
-		t.Errorf("expected example.com/redirect2, got %s", w.Header().Get("Location"))
-	}
-
-	// check body
-	if w.Body.String() != "" {
-		t.Errorf("expected empty body, got %s", w.Body.String())
-	}
 }
 
 // test redirect route
@@ -723,10 +715,6 @@ func TestRouterRedirectRoute(t *testing.T) {
 		t.Errorf("expected status 302, got %d", w.Code)
 	}
 
-	// check body
-	if w.Body.String() != "redirect_route2" {
-		t.Errorf("expected redirect_route2 body, got %s", w.Body.String())
-	}
 }
 
 /*

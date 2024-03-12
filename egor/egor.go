@@ -540,9 +540,9 @@ func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) e
 // Render the template tmpl with the data. If no template is configured, Render will panic.
 // data is a map such that it can be extended with
 // the request context keys if passContextToViews is set to true.
-func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[string]any) error {
+func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[string]any) {
 	if r.template == nil {
-		return fmt.Errorf("template is not set")
+		panic("No template is configured")
 	}
 
 	// pass the request context to the views
@@ -557,20 +557,40 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 
 	// if baseLayout and contentBlock are set, render the template with the base layout
 	if r.baseLayout != "" && r.contentBlock != "" {
-		return r.renderTemplate(w, name, data)
+		err := r.renderTemplate(w, name, data)
+		if err != nil {
+			log.Println(err)
+
+			// send the error
+			if writer, ok := w.(http.ResponseWriter); ok {
+				writer.Header().Set("Content-Type", ContentTypeHTML)
+				writer.WriteHeader(http.StatusInternalServerError)
+			}
+		}
+		return
 	}
 
-	return r.template.ExecuteTemplate(w, name, data)
+	err := r.template.ExecuteTemplate(w, name, data)
+	if err != nil {
+		log.Println(err)
+
+		// send the error
+		if writer, ok := w.(http.ResponseWriter); ok {
+			writer.Header().Set("Content-Type", ContentTypeHTML)
+			writer.WriteHeader(http.StatusInternalServerError)
+		}
+	}
 }
 
 // Render a template of given name and pass the data to it.
 // Make sure you are using egor.Router. Otherwise this function will panic.
-func Render(w io.Writer, req *http.Request, name string, data map[string]any) error {
+func Render(w io.Writer, req *http.Request, name string, data map[string]any) {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
 		panic("You are not using egor.Router. You cannot use this function")
 	}
-	return ctx.Router.Render(w, req, name, data)
+
+	ctx.Router.Render(w, req, name, data)
 }
 
 func (r *Router) Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int) {

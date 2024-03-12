@@ -106,9 +106,7 @@ func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...in
 	if url[0] == '/' {
 		url = req.Host + url
 	}
-
-	w.Header().Set("Location", url)
-	w.WriteHeader(statusCode)
+	http.Redirect(w, req, url, statusCode)
 }
 
 func Query(req *http.Request, key string, defaults ...string) string {
