@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,9 @@ import (
 	"github.com/abiiranathan/egor/egor/middleware"
 )
 
+//go:embed static
+var static embed.FS
+
 func main() {
 	mux := egor.NewRouter()
 	logger := middleware.NewLogger(os.Stderr)
@@ -18,6 +22,8 @@ func main() {
 	mux.Use(logger.Logger)
 	mux.Use(middleware.Etag())
 	mux.Use(middleware.Cors())
+
+	mux.StaticFS("/static", http.FS(static))
 
 	mux.Get("/test/{id}", func(w http.ResponseWriter, r *http.Request) {
 		egor.Redirect(w, r, "/redirect")

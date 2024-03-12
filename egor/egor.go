@@ -375,9 +375,7 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 	}
 
 	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		path := strings.TrimPrefix(req.URL.Path, prefix)
-
-		f, err := fs.Open(path)
+		f, err := fs.Open(req.URL.Path)
 		if err != nil {
 			http.NotFound(w, req)
 			return
@@ -395,7 +393,7 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		http.ServeContent(w, req, path, stat.ModTime(), f)
+		http.ServeContent(w, req, req.URL.Path, stat.ModTime(), f)
 	}))
 }
 
