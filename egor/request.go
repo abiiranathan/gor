@@ -61,9 +61,13 @@ func SendString(w http.ResponseWriter, s string) error {
 }
 
 // Sends the error message as a html string with the status code
-func SendError(w http.ResponseWriter, err error, status int) {
+func SendError(w http.ResponseWriter, err error, status ...int) {
+	var statusCode = http.StatusInternalServerError
+	if len(status) > 0 {
+		statusCode = status[0]
+	}
 	w.Header().Set("Content-Type", ContentTypeHTML)
-	w.WriteHeader(status)
+	w.WriteHeader(statusCode)
 	_, err = w.Write([]byte(err.Error()))
 	if err != nil {
 		log.Println(err)
@@ -71,9 +75,14 @@ func SendError(w http.ResponseWriter, err error, status int) {
 }
 
 // sends the error message as a JSON string with the status code
-func SendJSONError(w http.ResponseWriter, key, s string, status int) {
+func SendJSONError(w http.ResponseWriter, key, s string, status ...int) {
+	var statusCode = http.StatusInternalServerError
+	if len(status) > 0 {
+		statusCode = status[0]
+	}
+
 	w.Header().Set("Content-Type", ContentTypeJSON)
-	w.WriteHeader(status)
+	w.WriteHeader(statusCode)
 	_, err := w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s))) // json.Encoder appends a newline
 	if err != nil {
 		log.Println(err)

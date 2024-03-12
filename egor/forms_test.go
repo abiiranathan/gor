@@ -305,3 +305,84 @@ func TestBodyParserXML(t *testing.T) {
 		t.Errorf("BodyParser() status = %v, want %v", w.Code, http.StatusOK)
 	}
 }
+
+// test QueryParser
+func TestQueryParser(t *testing.T) {
+	type TestStruct struct {
+		Field1 string `query:"field1"`
+		Field2 int    `query:"field2"`
+	}
+
+	r := NewRouter()
+	r.Get("/submit", func(w http.ResponseWriter, r *http.Request) {
+		var test TestStruct
+		if err := QueryParser(r, &test); err != nil {
+			t.Errorf("QueryParser() error = %v", err)
+			return
+		}
+
+		if test.Field1 != "test" {
+			t.Errorf("QueryParser() = %v, want %v", test.Field1, "test")
+		}
+
+		if test.Field2 != 123 {
+			t.Errorf("QueryParser() = %v, want %v", test.Field2, 123)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// send a query
+	req := httptest.NewRequest(http.MethodGet, "/submit?field1=test&field2=123", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("QueryParser() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+// test query parser with slice
+func TestQueryParserSlice(t *testing.T) {
+	type TestStruct struct {
+		Ints    []int     `query:"ints"`
+		Strings []string  `query:"strings"`
+		Floats  []float64 `query:"floats"`
+	}
+
+	r := NewRouter()
+	r.Get("/submitslice", func(w http.ResponseWriter, r *http.Request) {
+		var test TestStruct
+		if err := QueryParser(r, &test); err != nil {
+			t.Errorf("QueryParser() error = %v", err)
+			return
+		}
+
+		if !reflect.DeepEqual(test.Ints, []int{1, 2, 3}) {
+			t.Errorf("QueryParser() = %v, want %v", test.Ints, []int{1, 2, 3})
+		}
+
+		if !reflect.DeepEqual(test.Strings, []string{"a", "b", "c"}) {
+			t.Errorf("QueryParser() = %v, want %v", test.Strings, []string{"a", "b", "c"})
+		}
+
+		if !reflect.DeepEqual(test.Floats, []float64{1.1, 2.2, 3.3}) {
+			t.Errorf("QueryParser() = %v, want %v", test.Floats, []float64{1.1, 2.2, 3.3})
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// send a query
+	req := httptest.NewRequest(http.MethodGet, "/submitslice?ints=1&ints=2&ints=3&strings=a&strings=b&strings=c&floats=1.1&floats=2.2&floats=3.3", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("QueryParser() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}

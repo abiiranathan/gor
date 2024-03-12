@@ -115,13 +115,21 @@ func SnakeCase(s string) string {
 	return strings.ToLower(res.String())
 }
 
-func parseFormData(data map[string]interface{}, v interface{}) error {
+// Parses the form data and stores the result in v.
+// Default tag name is "form". You can specify a different tag name using the tag argument.
+// Forexample "query" tag name will parse the form data using the "query" tag.
+func parseFormData(data map[string]interface{}, v interface{}, tag ...string) error {
+	var tagName string = "form"
+	if len(tag) > 0 {
+		tagName = tag[0]
+	}
+
 	rv := reflect.ValueOf(v).Elem()
 	rt := rv.Type()
 
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
-		tag := field.Tag.Get("form")
+		tag := field.Tag.Get(tagName)
 		if tag == "" {
 			tag = SnakeCase(field.Name)
 		}
@@ -301,4 +309,30 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 type FormScanner interface {
 	// FormScan scans the form value and stores the result in the receiver.
 	FormScan(value interface{}) error
+}
+
+// QueryParser parses the query string and stores the result in v.
+func QueryParser(req *http.Request, v interface{}, tag ...string) error {
+	var tagName string = "query"
+	if len(tag) > 0 {
+		tagName = tag[0]
+	}
+
+	// Make sure v is a pointer to a struct
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("v must be a pointer to a struct")
+	}
+
+	data := req.URL.Query()
+	dataMap := make(map[string]interface{}, len(data))
+	for k, v := range data {
+		if len(v) == 1 {
+			dataMap[k] = v[0] // if there's only one value.
+		} else {
+			dataMap[k] = v // array of values or empty array
+		}
+	}
+
+	return parseFormData(dataMap, v, tagName)
 }
