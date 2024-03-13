@@ -74,7 +74,7 @@ type Router struct {
 	template           *template.Template // All parsed templates
 	baseLayout         string             // Base layout for the templates(default is "")
 	contentBlock       string             // Content block for the templates(default is "Content")
-	errorTemplate      string             // Error template. Passed "error" as a variable
+	errorTemplate      string             // Error template. Passed "error", "status", "status_text" in its context.
 	passContextToViews bool               // Pass the request context to the views
 
 	// groups
@@ -558,7 +558,11 @@ func (r *Router) renderErrorTemplate(w http.ResponseWriter, err error, status ..
 	w.WriteHeader(statusCode)
 
 	if r.errorTemplate != "" {
-		err = r.renderTemplate(w, r.errorTemplate, Map{"error": err})
+		err = r.renderTemplate(w, r.errorTemplate, Map{
+			"status":      statusCode,
+			"status_text": http.StatusText(statusCode),
+			"error":       err,
+		})
 		if err != nil {
 			log.Println(err)
 		}
