@@ -134,7 +134,7 @@ func TestSendError(t *testing.T) {
 	r := NewRouter()
 
 	r.Get("/testsenderror", func(w http.ResponseWriter, req *http.Request) {
-		SendError(w, errors.New("Not Found"), http.StatusNotFound)
+		SendError(w, req, errors.New("Not Found"), http.StatusNotFound)
 	})
 
 	req := httptest.NewRequest("GET", "/testsenderror", nil)

@@ -393,7 +393,7 @@ func TestRouterRenderWithBaseLayout(t *testing.T) {
 	)
 
 	r.Get("/home_page", func(w http.ResponseWriter, req *http.Request) {
-		data := map[string]any{
+		data := egor.Map{
 			"Title": "Home Page",
 			"Body":  "Welcome to the home page",
 		}
@@ -403,7 +403,7 @@ func TestRouterRenderWithBaseLayout(t *testing.T) {
 		r.Render(w, req, "home.html", data)
 
 		if err != nil {
-			egor.SendError(w, err, http.StatusInternalServerError)
+			egor.SendError(w, req, err, http.StatusInternalServerError)
 		}
 	})
 

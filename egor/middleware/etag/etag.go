@@ -1,4 +1,4 @@
-package middleware
+package etag
 
 import (
 	"bytes"
@@ -25,9 +25,9 @@ func (e *etagResponseWriter) Write(p []byte) (int, error) {
 	return e.w.Write(p)
 }
 
-// Etag creates a new middleware handler that generates ETags for the response
+// New creates a new middleware handler that generates ETags for the response
 // and validates the If-Match and If-None-Match headers.
-func Etag(skip ...func(r *http.Request) bool) egor.Middleware {
+func New(skip ...func(r *http.Request) bool) egor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var skipEtag bool

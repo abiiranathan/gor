@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"context"
@@ -15,8 +15,8 @@ type claimsType string
 
 const jwtClaimsKey claimsType = "claims"
 
-// JWTMiddleware creates a JWT middleware with the given secret and options.
-func JWTMiddleware(secret string) egor.Middleware {
+// JWT creates a JWT middleware with the given secret and options.
+func JWT(secret string) egor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// Extract the JWT token from the request

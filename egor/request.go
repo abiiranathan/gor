@@ -24,48 +24,71 @@ const (
 	ContentTypeEventStream   string = "text/event-stream"
 )
 
+// Set a value in the request context. Also saves a copy in locals map.
+// This allows for passing of passing of locals to templates.
 func SetContextValue(req *http.Request, key any, value interface{}) {
 	ctx := context.WithValue(req.Context(), key, value)
 	*req = *req.WithContext(ctx)
 
 	// Set the value in the locals map. This allows us to access the value in the templates
-	localCtx := req.Context().Value(contextKey).(*CTX)
-	localCtx.Set(key, value)
+	if localCtx, ok := req.Context().Value(contextKey).(*CTX); ok {
+		localCtx.Set(key, value)
+	}
 }
 
+// return a value from context.
 func GetContextValue(req *http.Request, key any) interface{} {
-	// get value from locals
-	localCtx := req.Context().Value(contextKey).(*CTX)
-	return localCtx.Get(key)
+	// We don't use locals incase someone is using a different router.
+	return req.Context().Value(key)
 }
 
+// Send v as JSON. Uses json.NewEncoder and sets content-type
+// application/json for the response.
 func SendJSON(w http.ResponseWriter, v interface{}) error {
 	w.Header().Set("Content-Type", ContentTypeJSON)
 	return json.NewEncoder(w).Encode(v)
 }
 
+// Send HTML string.
 func SendHTML(w http.ResponseWriter, html string) error {
 	w.Header().Set("Content-Type", ContentTypeHTML)
 	_, err := w.Write([]byte(html))
 	return err
 }
 
+// Wrapper around http.Servefile.
 func SendFile(w http.ResponseWriter, req *http.Request, file string) {
 	http.ServeFile(w, req, file)
 }
 
+// Send string back to client.
 func SendString(w http.ResponseWriter, s string) error {
 	w.Header().Set("Content-Type", ContentTypeText)
 	_, err := w.Write([]byte(s))
 	return err
 }
 
-// Sends the error message as a html string with the status code
-func SendError(w http.ResponseWriter, err error, status ...int) {
+// Sends the error message to the client as html.
+// If the Router has errorTemplate configured, the error template will be rendered instead.
+// You can also pass a status code to be used.
+// Yo do not need to call SendError after template rendering since the template will be rendered
+// automatically if an error occurs during template rendering.
+func SendError(w http.ResponseWriter, req *http.Request, err error, status ...int) {
 	var statusCode = http.StatusInternalServerError
 	if len(status) > 0 {
 		statusCode = status[0]
 	}
+
+	// We are using go router.
+	if writer, ok := w.(*ResponseWriter); ok {
+		// get the CTX from the request
+		ctx := req.Context().Value(contextKey).(*CTX)
+		if ctx.Router.errorTemplate != "" {
+			ctx.Router.renderErrorTemplate(writer, err, statusCode)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", ContentTypeHTML)
 	w.WriteHeader(statusCode)
 	_, err = w.Write([]byte(err.Error()))

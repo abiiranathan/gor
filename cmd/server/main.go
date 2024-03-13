@@ -17,17 +17,18 @@ var viewsFS embed.FS
 // {{ .Content }} is replaced with page contents.
 // No need for {{ template "base.html" . }} in every page.
 func HomeHandler(w http.ResponseWriter, req *http.Request) {
-	data := map[string]any{
+	data := egor.Map{
 		"Title": "Home Page",
 		"Body":  "Welcome to the home page",
 	}
+
 	// Router is accessed in context and used for rending. Same as r.Render()
 	// but this way you don't need r in scope.
 	egor.Render(w, req, "home.html", data)
 }
 
 func AboutHandler(w http.ResponseWriter, req *http.Request) {
-	data := map[string]any{
+	data := egor.Map{
 		"Title": "About Page",
 		"Body":  "Welcome to the about page",
 	}
@@ -35,7 +36,7 @@ func AboutHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func NestedTemplate(w http.ResponseWriter, req *http.Request) {
-	egor.Render(w, req, "doctor/doctor.html", map[string]any{})
+	egor.Render(w, req, "doctor/doctor.html", egor.Map{})
 }
 
 func ApiHandler(w http.ResponseWriter, req *http.Request) {
@@ -89,7 +90,7 @@ func SessionMiddleware(next http.Handler) http.Handler {
 }
 
 func loginGetHandler(w http.ResponseWriter, req *http.Request) {
-	egor.Render(w, req, "login.html", map[string]any{})
+	egor.Render(w, req, "login.html", egor.Map{})
 }
 
 func main() {

@@ -14,6 +14,14 @@ func BaseLayout(baseLayout string) RouterOption {
 	}
 }
 
+// ErrorTemplate sets the error template for the router.
+// If set, this template will be used to render errors.
+func ErrorTemplate(errorTemplate string) RouterOption {
+	return func(r *Router) {
+		r.errorTemplate = errorTemplate
+	}
+}
+
 func ContentBlock(contentBlock string) RouterOption {
 	return func(r *Router) {
 		r.contentBlock = contentBlock

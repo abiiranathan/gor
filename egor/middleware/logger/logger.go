@@ -1,4 +1,4 @@
-package middleware
+package logger
 
 import (
 	"errors"
@@ -30,8 +30,8 @@ type LoggerMiddleware struct {
 	Options *slog.HandlerOptions
 }
 
-// NewLogger creates a new LoggerMiddleware with the specified configuration.
-func NewLogger(output io.Writer, skip ...string) *LoggerMiddleware {
+// New creates a new LoggerMiddleware with the specified configuration.
+func New(output io.Writer, skip ...string) *LoggerMiddleware {
 	lm := &LoggerMiddleware{
 		Output: output,
 		Format: TextFormat,

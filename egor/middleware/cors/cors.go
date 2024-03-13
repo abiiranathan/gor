@@ -1,4 +1,4 @@
-package middleware
+package cors
 
 import (
 	"fmt"
@@ -19,9 +19,9 @@ type CORSOptions struct {
 	Allowwebsockets  bool     // Allow websockets
 }
 
-// Cors middleware.
+// New middleware.
 // If the origin is not allowed, a 403 status code is sent.
-func Cors(opts ...CORSOptions) egor.Middleware {
+func New(opts ...CORSOptions) egor.Middleware {
 	var options = CORSOptions{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},

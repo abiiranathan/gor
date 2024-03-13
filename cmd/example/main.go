@@ -5,26 +5,50 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/abiiranathan/egor/egor"
-	"github.com/abiiranathan/egor/egor/middleware"
+	"github.com/abiiranathan/egor/egor/middleware/cors"
+	"github.com/abiiranathan/egor/egor/middleware/csrf"
+	"github.com/abiiranathan/egor/egor/middleware/etag"
+	"github.com/abiiranathan/egor/egor/middleware/logger"
+	"github.com/abiiranathan/egor/egor/middleware/recovery"
+	"github.com/gorilla/sessions"
 )
 
 //go:embed static/*
 var static embed.FS
 
 func main() {
+	t, err := egor.ParseTemplatesRecursiveFS(static, "static", template.FuncMap{})
+	if err != nil {
+		panic(err)
+	}
+
 	// Create a new router
 	egor.NoTrailingSlash = true
-	mux := egor.NewRouter()
-	logger := middleware.NewLogger(os.Stderr)
+	mux := egor.NewRouter(
+		egor.WithTemplates(t),
+		egor.PassContextToViews(true),
+	)
 
-	mux.Use(middleware.Recover(true))
-	mux.Use(logger.Logger)
-	mux.Use(middleware.Etag())
-	mux.Use(middleware.Cors())
+	mux.Use(recovery.New(false))
+	mux.Use(logger.New(os.Stderr).Logger)
+	mux.Use(etag.New())
+	mux.Use(cors.New())
 
+	var store = sessions.NewCookieStore([]byte("secret key"))
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   0,
+		Domain:   "localhost",
+		Secure:   false,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	mux.Use(csrf.New(store).Middleware)
 	mux.StaticFS("/static", http.FS(static))
 	// mux.Static("/static/", "static")
 
@@ -37,6 +61,20 @@ func main() {
 
 	mux.Get("/redirect", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Redirected")
+	})
+
+	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		egor.Render(w, r, "index.html", egor.Map{})
+	})
+
+	mux.Post("/login", func(w http.ResponseWriter, r *http.Request) {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		// log the csrf token
+		fmt.Println(r.FormValue("csrf_token"))
+
+		fmt.Fprintf(w, "Username: %s, Password: %s", username, password)
 	})
 
 	mux.FaviconFS(http.FS(static), "static/favicon.ico")

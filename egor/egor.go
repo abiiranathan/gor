@@ -47,6 +47,9 @@ type contextType string
 // Standard function that wraps an http.Handler.
 type Middleware func(next http.Handler) http.Handler
 
+// Generic type for any value used to pass data around between templates and context.
+type Map map[string]any
+
 // contextKey is the key used to store the custom CTX inside the request context.
 // Access the context with
 //
@@ -71,6 +74,7 @@ type Router struct {
 	template           *template.Template // All parsed templates
 	baseLayout         string             // Base layout for the templates(default is "")
 	contentBlock       string             // Content block for the templates(default is "Content")
+	errorTemplate      string             // Error template. Passed "error" as a variable
 	passContextToViews bool               // Pass the request context to the views
 
 	// groups
@@ -484,9 +488,13 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 			}
 		}
 
-		// open the file from the embed.FS
-		f, err := frontendFS.Open(filepath.Join(buildPath, req.URL.Path))
+		baseName := filepath.Base(req.URL.Path)
+		if req.URL.Path == "/" {
+			baseName = indexFile
+		}
 
+		// open the file from the embed.FS
+		f, err := frontendFS.Open(filepath.Join(buildPath, baseName))
 		if err != nil {
 			if os.IsNotExist(err) {
 				// Could be an invalid API request
@@ -538,8 +546,33 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 	})
 }
 
+// render error template
+func (r *Router) renderErrorTemplate(w http.ResponseWriter, err error, status ...int) {
+	var statusCode = http.StatusInternalServerError
+	if len(status) > 0 {
+		statusCode = status[0]
+	}
+
+	// send the error
+	w.Header().Set("Content-Type", ContentTypeHTML)
+	w.WriteHeader(statusCode)
+
+	if r.errorTemplate != "" {
+		err = r.renderTemplate(w, r.errorTemplate, Map{"error": err})
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func (r *Router) RenderError(w http.ResponseWriter, err error, status ...int) {
+	r.renderErrorTemplate(w, err, status...)
+}
+
 // =========== TEMPLATE FUNCTIONS ===========
-func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) error {
+func (r *Router) renderTemplate(w io.Writer, name string, data Map) error {
 	// if name is missing the extension, add it(assume it's an html file)
 	if filepath.Ext(name) == "" {
 		name = name + ".html"
@@ -576,7 +609,7 @@ func (r *Router) renderTemplate(w io.Writer, name string, data map[string]any) e
 // data is a map such that it can be extended with
 // the request context keys if passContextToViews is set to true.
 // If a file extension is missing, it will be appended as ".html".
-func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[string]any) {
+func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 	if r.template == nil {
 		panic("No template is configured")
 	}
@@ -586,7 +619,7 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 		ctx, ok := req.Context().Value(contextKey).(*CTX)
 		if ok {
 			for k, v := range ctx.locals {
-				data[k.(string)] = v
+				data[fmt.Sprintf("%v", k)] = v
 			}
 		}
 	}
@@ -601,11 +634,13 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 			if writer, ok := w.(http.ResponseWriter); ok {
 				writer.Header().Set("Content-Type", ContentTypeHTML)
 				writer.WriteHeader(http.StatusInternalServerError)
+				writer.Write([]byte(err.Error()))
 			}
 		}
 		return
 	}
 
+	fmt.Println(data)
 	err := r.template.ExecuteTemplate(w, name, data)
 	if err != nil {
 		log.Println(err)
@@ -614,6 +649,7 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 		if writer, ok := w.(http.ResponseWriter); ok {
 			writer.Header().Set("Content-Type", ContentTypeHTML)
 			writer.WriteHeader(http.StatusInternalServerError)
+			writer.Write([]byte(err.Error()))
 		}
 	}
 }
@@ -621,12 +657,11 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data map[st
 // Render a template of given name and pass the data to it.
 // Make sure you are using egor.Router. Otherwise this function will panic.
 // If a file extension is missing, it will be appended as ".html".
-func Render(w io.Writer, req *http.Request, name string, data map[string]any) {
+func Render(w io.Writer, req *http.Request, name string, data Map) {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
 		panic("You are not using egor.Router. You cannot use this function")
 	}
-
 	ctx.Router.Render(w, req, name, data)
 }
 
