@@ -1,8 +1,10 @@
 package etag
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha1"
+	"net"
 
 	"fmt"
 	"hash"
@@ -20,9 +22,28 @@ type etagResponseWriter struct {
 	w                   io.Writer    // MultiWriter (buf, hash)
 }
 
+func (e *etagResponseWriter) WriteHeader(code int) {
+	e.ResponseWriter.WriteHeader(code)
+}
+
 // Writes the response to the buffer and the hash
 func (e *etagResponseWriter) Write(p []byte) (int, error) {
 	return e.w.Write(p)
+}
+
+// Flush implements the http.Flusher interface
+func (e *etagResponseWriter) Flush() {
+	if f, ok := e.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Hijack implements the http.Hijacker interface
+func (e *etagResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := e.ResponseWriter.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, http.ErrNotSupported
 }
 
 // New creates a new middleware handler that generates ETags for the response
@@ -62,7 +83,8 @@ func New(skip ...func(r *http.Request) bool) egor.Middleware {
 
 			rw := w.(*egor.ResponseWriter)
 			if rw.Status() != http.StatusOK {
-				return // Don't generate ETags for invalid responses
+				ew.buf.WriteTo(w) // Write the buffer to the original response writer
+				return            // Don't generate ETags for invalid responses
 			}
 
 			etag := fmt.Sprintf("%x", ew.hash.Sum(nil))

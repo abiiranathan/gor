@@ -63,6 +63,11 @@ func main() {
 		fmt.Fprintf(w, "Redirected")
 	})
 
+	mux.Get("/api", func(w http.ResponseWriter, r *http.Request) {
+		egor.SendJSONError(w, "error", "This is an error", http.StatusBadRequest)
+
+	})
+
 	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		egor.Render(w, r, "index.html", egor.Map{})
 	})

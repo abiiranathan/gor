@@ -89,8 +89,8 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 	}
 
 	w.Header().Set("Content-Type", ContentTypeHTML)
-	w.Write([]byte(err.Error()))
 	w.WriteHeader(statusCode)
+	w.Write([]byte(err.Error()))
 }
 
 // sends the error message as a JSON string with the status code
@@ -101,8 +101,9 @@ func SendJSONError(w http.ResponseWriter, key, s string, status ...int) {
 	}
 
 	w.Header().Set("Content-Type", ContentTypeJSON)
-	w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s))) // json.Encoder appends a newline
+	msg := fmt.Sprintf(`{"%s":"%s"}`, key, s)
 	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(msg)
 }
 
 func GetContentType(req *http.Request) string {
