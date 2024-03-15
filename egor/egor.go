@@ -341,7 +341,7 @@ func (r *Router) Static(prefix, dir string) {
 		prefix = prefix + "/"
 	}
 
-	var h http.HandlerFunc = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	var h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
 		http.ServeFile(w, req, path)
 	})
@@ -381,7 +381,7 @@ func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
 
 // Serve favicon.ico from the file system fs at path.
 func (r *Router) FaviconFS(fs http.FileSystem, path string) {
-	var handler http.HandlerFunc = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	var handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		f, err := fs.Open(path)
 		if err != nil {
 			http.NotFound(w, req)
@@ -555,7 +555,6 @@ func (r *Router) renderErrorTemplate(w http.ResponseWriter, err error, status ..
 
 	// send the error
 	w.Header().Set("Content-Type", ContentTypeHTML)
-	w.WriteHeader(statusCode)
 
 	if r.errorTemplate != "" {
 		err = r.renderTemplate(w, r.errorTemplate, Map{
@@ -569,6 +568,7 @@ func (r *Router) renderErrorTemplate(w http.ResponseWriter, err error, status ..
 	} else {
 		w.Write([]byte(err.Error()))
 	}
+	w.WriteHeader(statusCode)
 }
 
 func (r *Router) RenderError(w http.ResponseWriter, err error, status ...int) {
@@ -637,8 +637,8 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 			// send the error
 			if writer, ok := w.(http.ResponseWriter); ok {
 				writer.Header().Set("Content-Type", ContentTypeHTML)
-				writer.WriteHeader(http.StatusInternalServerError)
 				writer.Write([]byte(err.Error()))
+				writer.WriteHeader(http.StatusInternalServerError)
 			}
 		}
 		return
@@ -652,8 +652,8 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 		// send the error
 		if writer, ok := w.(http.ResponseWriter); ok {
 			writer.Header().Set("Content-Type", ContentTypeHTML)
-			writer.WriteHeader(http.StatusInternalServerError)
 			writer.Write([]byte(err.Error()))
+			writer.WriteHeader(http.StatusInternalServerError)
 		}
 	}
 }

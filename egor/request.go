@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -90,11 +89,8 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 	}
 
 	w.Header().Set("Content-Type", ContentTypeHTML)
+	w.Write([]byte(err.Error()))
 	w.WriteHeader(statusCode)
-	_, err = w.Write([]byte(err.Error()))
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 // sends the error message as a JSON string with the status code
@@ -105,11 +101,8 @@ func SendJSONError(w http.ResponseWriter, key, s string, status ...int) {
 	}
 
 	w.Header().Set("Content-Type", ContentTypeJSON)
+	w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s))) // json.Encoder appends a newline
 	w.WriteHeader(statusCode)
-	_, err := w.Write([]byte(fmt.Sprintf(`{"%s":"%s"}`, key, s))) // json.Encoder appends a newline
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func GetContentType(req *http.Request) string {
