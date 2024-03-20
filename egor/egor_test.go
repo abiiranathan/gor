@@ -833,47 +833,42 @@ func BenchmarkRouterFullCycle(b *testing.B) {
 	}
 }
 
-/*
+func TestRouterExecuteTemplate(t *testing.T) {
+	templ, err := egor.ParseTemplatesRecursive("../cmd/server/templates",
+		template.FuncMap{"upper": strings.ToUpper}, ".html")
 
-func (r *Router) FileFS(fs http.FileSystem, prefix, path string) {
-	r.Get(prefix, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		f, err := fs.Open(path)
+	if err != nil {
+		panic(err)
+	}
+
+	r := egor.NewRouter(egor.WithTemplates(templ))
+
+	r.Get("/template", func(w http.ResponseWriter, req *http.Request) {
+		data := egor.Map{
+			"Title": "Template",
+			"Body":  "Welcome to the template page",
+		}
+
+		err := r.ExecuteTemplate(w, "home.html", data)
 		if err != nil {
-			http.NotFound(w, req)
-			return
+			egor.SendError(w, req, err, http.StatusInternalServerError)
 		}
-		defer f.Close()
+	})
 
-		stat, err := f.Stat()
-		if err != nil || stat.IsDir() {
-			http.NotFound(w, req)
-			return
-		}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/template", nil)
+	r.ServeHTTP(w, req)
 
-		http.ServeContent(w, req, path, stat.ModTime(), f)
-	}))
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	// check body
+	if !strings.Contains(w.Body.String(), "Welcome to the template page") {
+		t.Errorf("expected Welcome to the template page, got %s", w.Body.String())
+	}
+
 }
-
-// Serve favicon.ico from the file system fs at path.
-func (r *Router) FaviconFS(fs http.FileSystem, path string) {
-	r.Get("/favicon.ico", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		f, err := fs.Open(path)
-		if err != nil {
-			http.NotFound(w, req)
-			return
-		}
-		defer f.Close()
-
-		stat, err := f.Stat()
-		if err != nil || stat.IsDir() {
-			http.NotFound(w, req)
-			return
-		}
-		http.ServeContent(w, req, path, stat.ModTime(), f)
-	}))
-}
-
-*/
 
 func TestRouterFileFS(t *testing.T) {
 	dirname, err := os.MkdirTemp("", "assets")

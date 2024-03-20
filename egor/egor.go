@@ -669,6 +669,28 @@ func Render(w io.Writer, req *http.Request, name string, data Map) {
 	ctx.Router.Render(w, req, name, data)
 }
 
+// Execute a standalone template without a layout.
+func (r *Router) ExecuteTemplate(w io.Writer, name string, data Map) error {
+	if r.template == nil {
+		panic("No template is configured")
+	}
+
+	// append the file extension if missing
+	if filepath.Ext(name) == "" {
+		name = name + ".html"
+	}
+	return r.template.ExecuteTemplate(w, name, data)
+}
+
+// Execute a standalone template without a layout.
+func ExecuteTemplate(w io.Writer, req *http.Request, name string, data Map) error {
+	ctx, ok := req.Context().Value(contextKey).(*CTX)
+	if !ok {
+		panic("You are not using egor.Router. You cannot use this function")
+	}
+	return ctx.Router.ExecuteTemplate(w, name, data)
+}
+
 func (r *Router) Redirect(w http.ResponseWriter, req *http.Request, url string, status ...int) {
 	Redirect(w, req, url, status...)
 }
