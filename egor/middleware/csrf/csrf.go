@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -225,7 +224,7 @@ func (c *csrf) Middleware(next http.Handler) http.Handler {
 			w.Header().Set(c.HeaderKeyName, token)
 			egor.SetContextValue(req, TokenContextType(formKeyName), token)
 
-			fmt.Println("Token:", token)
+			// fmt.Println("Token:", token)
 			next.ServeHTTP(w, req)
 			return
 		}

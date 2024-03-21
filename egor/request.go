@@ -3,7 +3,6 @@ package egor
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -94,16 +93,15 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 }
 
 // sends the error message as a JSON string with the status code
-func SendJSONError(w http.ResponseWriter, key, s string, status ...int) {
+func SendJSONError(w http.ResponseWriter, resp map[string]any, status ...int) {
 	var statusCode = http.StatusInternalServerError
 	if len(status) > 0 {
 		statusCode = status[0]
 	}
 
 	w.Header().Set("Content-Type", ContentTypeJSON)
-	msg := fmt.Sprintf(`{"%s":"%s"}`, key, s)
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(msg)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func GetContentType(req *http.Request) string {

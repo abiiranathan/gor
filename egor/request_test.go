@@ -2,6 +2,7 @@ package egor
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -150,17 +151,47 @@ func TestSendJSONError(t *testing.T) {
 	r := NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-		SendJSONError(w, "key", "value", http.StatusNotFound)
+		SendJSONError(w, map[string]any{"key": "value"}, http.StatusBadRequest)
 	})
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	expected := "{\"key\":\"value\"}" // json.Marshal does not append a newline
+	expected := "{\"key\":\"value\"}\n"
 	if w.Body.String() != expected {
 		t.Errorf("expected %q, got %q", expected, w.Body.String())
 	}
+}
+
+func TestSendJSONError2(t *testing.T) {
+	r := NewRouter()
+	r.Get("/jsonerror", func(w http.ResponseWriter, r *http.Request) {
+		SendJSONError(w, map[string]any{"error": "Something went wrong"}, http.StatusBadRequest)
+	})
+
+	req := httptest.NewRequest("GET", "/jsonerror", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status code %q, got %q", http.StatusBadRequest, w.Code)
+	}
+
+	res := make(map[string]any)
+	json.Unmarshal(w.Body.Bytes(), &res)
+
+	errStr, ok := res["error"]
+	if !ok {
+		t.Errorf("expected map to contain error key")
+	}
+
+	expected := "Something went wrong"
+	if errStr != expected {
+		t.Errorf("Expected map key to be %v, got %v", expected, errStr)
+	}
+
 }
 
 func TestGetContentType(t *testing.T) {

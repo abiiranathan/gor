@@ -64,8 +64,7 @@ func main() {
 	})
 
 	mux.Get("/api", func(w http.ResponseWriter, r *http.Request) {
-		egor.SendJSONError(w, "error", "This is an error", http.StatusBadRequest)
-
+		egor.SendJSONError(w, map[string]any{"error": "This is an error"}, http.StatusBadRequest)
 	})
 
 	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
