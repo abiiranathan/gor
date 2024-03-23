@@ -50,6 +50,7 @@ func TestSetField(t *testing.T) {
 		value     interface{}
 		expected  interface{}
 	}{
+
 		{"String", reflect.String, "test", "test"},
 		{"Int", reflect.Int, "123", 123},
 		{"Uint", reflect.Uint, "123", uint(123)},
@@ -98,10 +99,47 @@ func TestSetField(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(fieldValue.Interface(), tt.expected) {
-				t.Errorf("setField() = %v, want %v", fieldValue.Interface(), tt.expected)
+				t.Errorf("setField() = %#v, want %#v", fieldValue.Interface(), tt.expected)
 			}
 		})
 	}
+}
+
+func TestHandleSlice(t *testing.T) {
+	tests := []struct {
+		name       string
+		fieldvalue reflect.Value
+		value      interface{}
+		expected   interface{}
+	}{
+		{"String", reflect.ValueOf(new([]string)).Elem(), "1, 2, 3", []string{"1", "2", "3"}},
+		{"Int", reflect.ValueOf(new([]int)).Elem(), "1, 2, 3", []int{1, 2, 3}},
+		{"Uint", reflect.ValueOf(new([]uint)).Elem(), "1, 2, 3", []uint{1, 2, 3}},
+		{"Float32", reflect.ValueOf(new([]float32)).Elem(), "1.1, 2.2, 3.3", []float32{1.1, 2.2, 3.3}},
+		{"Bool", reflect.ValueOf(new([]bool)).Elem(), "true, false, on", []bool{true, false, true}},
+		{"Time", reflect.ValueOf(new([]time.Time)).Elem(), "2022-02-22T12:00:00Z, 2022-02-23T12:00:00Z", []time.Time{time.Date(2022, 2, 22, 12, 0, 0, 0, time.UTC), time.Date(2022, 2, 23, 12, 0, 0, 0, time.UTC)}},
+		{"CustomStruct", reflect.ValueOf(new([]CustomStruct)).Elem(), "test1, test2", []CustomStruct{{Field1: "test1"}, {Field1: "test2"}}},
+		{"Date", reflect.ValueOf(new([]Date)).Elem(), "2022-02-22, 2022-02-23", []Date{
+			Date(time.Date(2022, 2, 22, 0, 0, 0, 0, time.UTC)),
+			Date(time.Date(2022, 2, 23, 0, 0, 0, 0, time.UTC)),
+		}},
+		{"CustomInt", reflect.ValueOf(new([]customInt)).Elem(), "1, 2, 3", []customInt{1, 2, 3}},
+		{"PointerToSlice", reflect.ValueOf(new(*[]string)).Elem(), "1, 2, 3", &[]string{"1", "2", "3"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := handleSlice(tt.fieldvalue, tt.value); err != nil {
+				t.Errorf("handleSlice() error = %v", err)
+				return
+			}
+
+			if !reflect.DeepEqual(tt.fieldvalue.Interface(), tt.expected) {
+				t.Errorf("handleSlice() = %v, want %v", tt.fieldvalue.Interface(), tt.expected)
+			}
+		})
+	}
+
 }
 
 func TestSetFieldCustomInt(t *testing.T) {

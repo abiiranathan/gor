@@ -301,6 +301,18 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 		return nil // Use a zero value slice
 	}
 
+	// If we have a pointer to a slice, call handleSlice recursively
+	if fieldVal.Kind() == reflect.Ptr {
+		// We can't call of reflect.Value.Type on zero Value
+		if fieldVal.IsNil() {
+			fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+		}
+		fieldVal = fieldVal.Elem()
+		if fieldVal.Kind() == reflect.Slice {
+			return handleSlice(fieldVal, valueSlice)
+		}
+	}
+
 	slice := reflect.MakeSlice(fieldVal.Type(), sliceLen, sliceLen)
 
 	// get the kind of the slice element
@@ -354,8 +366,66 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 			slice.Index(i).SetBool(n)
 		}
 		fieldVal.Set(slice)
+	case reflect.Struct:
+		// could be time.Time
+		if fieldVal.Type().Elem() == reflect.TypeOf(time.Time{}) {
+			for i, v := range valueSlice {
+				t, err := time.Parse(time.RFC3339, v)
+				if err != nil {
+					return err
+				}
+				slice.Index(i).Set(reflect.ValueOf(t))
+			}
+			fieldVal.Set(slice)
+		} else {
+			// Check if the slice element implements the FormScanner interface
+			_, ok := reflect.New(fieldVal.Type().Elem()).Interface().(FormScanner)
+			if !ok {
+				return fmt.Errorf("unsupported slice element type: %s", fieldVal.Type().Elem().Kind())
+			}
+
+			for i, v := range valueSlice {
+				// Create a new instance of the slice element
+				elem := reflect.New(fieldVal.Type().Elem()).Elem()
+
+				// Scan the form value into the slice element
+				if err := setField(elem, v); err != nil {
+					return err
+				}
+
+				// Set the element in the slice
+				slice.Index(i).Set(elem)
+			}
+
+			fieldVal.Set(slice)
+		}
 	default:
-		return fmt.Errorf("unsupported slice type: %s", elemKind)
+		elemType := fieldVal.Type().Elem()
+		if elemType.Kind() == reflect.Ptr {
+			elemType = elemType.Elem()
+		}
+
+		// Check if the slice element implements the FormScanner interface
+		_, ok := reflect.New(elemType).Interface().(FormScanner)
+		if !ok {
+			return fmt.Errorf("unsupported slice element type: %s", elemType.Kind())
+		}
+
+		for i, v := range valueSlice {
+			// Create a new instance of the slice element
+			elem := reflect.New(elemType).Elem()
+
+			// Scan the form value into the slice element
+			if err := setField(elem, v); err != nil {
+				return err
+			}
+
+			// Set the element in the slice
+			slice.Index(i).Set(elem)
+		}
+
+		fieldVal.Set(slice)
+
 	}
 	return nil
 }
