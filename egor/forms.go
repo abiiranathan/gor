@@ -59,6 +59,9 @@ func ParseMultipartForm(req *http.Request, maxMemory ...int64) (*multipart.Form,
 // For more robust form decoding we recommend using
 // https://github.com/gorilla/schema package.
 // Any form value can implement the FormScanner interface to implement custom form scanning.
+// Struct tags are used to specify the form field name.
+// If parsing forms, the default tag name is "form",
+// followed by the "json" tag name, and then snake case of the field name.
 func BodyParser(req *http.Request, v interface{}) error {
 	// Make sure v is a pointer to a struct
 	rv := reflect.ValueOf(v)
@@ -159,7 +162,11 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 		field := rt.Field(i)
 		tag := field.Tag.Get(tagName)
 		if tag == "" {
-			tag = SnakeCase(field.Name)
+			// try json tag name and fallback to snake case
+			tag = field.Tag.Get("json")
+			if tag == "" {
+				tag = SnakeCase(field.Name)
+			}
 		}
 
 		tagList := strings.Split(tag, ",")
