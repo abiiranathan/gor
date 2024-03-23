@@ -59,6 +59,7 @@ func TestSetField(t *testing.T) {
 		{"Bool True", reflect.Bool, "off", false},
 		{"Bool False", reflect.Bool, "false", false},
 		{"Slice", reflect.Slice, []string{"1", "2", "3"}, []string{"1", "2", "3"}},
+		{"SliceWithCommaSeperatedString", reflect.Slice, "1, 2, 3", []string{"1", "2", "3"}},
 		{"Time", reflect.Struct, "2022-02-22T12:00:00Z", time.Date(2022, 2, 22, 12, 0, 0, 0, time.UTC)},
 		{"CustomStruct", reflect.Struct, "test", CustomStruct{Field1: "test"}},
 		{"Date", reflect.Struct, "2022-02-22", Date(time.Date(2022, 2, 22, 0, 0, 0, 0, time.UTC))},

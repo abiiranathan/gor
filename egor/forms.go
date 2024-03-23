@@ -281,11 +281,24 @@ func setField(fieldVal reflect.Value, value interface{}) error {
 // Parses the form value and stores the result fieldVal.
 // value should be a slice of strings.
 func handleSlice(fieldVal reflect.Value, value any) error {
+	var valueSlice []string
+	var ok bool
+	valueSlice, ok = value.([]string)
+	if !ok {
+		// Check if its a string and split it and clean it
+		if v, ok := value.(string); ok {
+			valueSlice = strings.Split(v, ",")
+			for i := range valueSlice {
+				valueSlice[i] = strings.TrimSpace(valueSlice[i])
+			}
+		} else {
+			return fmt.Errorf("unsupported slice type: %T with value: %v", value, value)
+		}
+	}
 
-	valueSlice := value.([]string)
 	sliceLen := len(valueSlice)
 	if sliceLen == 0 {
-		return nil
+		return nil // Use a zero value slice
 	}
 
 	slice := reflect.MakeSlice(fieldVal.Type(), sliceLen, sliceLen)
