@@ -1,4 +1,4 @@
-package egor
+package gor
 
 import (
 	"encoding/json"
@@ -14,10 +14,8 @@ import (
 	"time"
 )
 
-func FormValue(req *http.Request, key string) string {
-	return req.FormValue(key)
-}
-
+// Parses form data and returns it to caller.
+// Panics if req.ParseForm returns an error.
 func FormData(req *http.Request) url.Values {
 	err := req.ParseForm()
 	if err != nil {
@@ -33,6 +31,7 @@ func FormFile(req *http.Request, key string) (*multipart.FileHeader, error) {
 }
 
 // FormFiles returns the files from the multipart form with the given key.
+// You must call ParseMultipartForm first for req.MultipartForm to be populated.
 func FormFiles(req *http.Request, key string) ([]*multipart.FileHeader, error) {
 	// get the file from multipart form
 	fhs, ok := req.MultipartForm.File[key]

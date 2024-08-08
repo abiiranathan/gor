@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"text/template"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 	"github.com/gorilla/sessions"
 )
 
@@ -17,26 +17,26 @@ var viewsFS embed.FS
 // {{ .Content }} is replaced with page contents.
 // No need for {{ template "base.html" . }} in every page.
 func HomeHandler(w http.ResponseWriter, req *http.Request) {
-	data := egor.Map{
+	data := gor.Map{
 		"Title": "Home Page",
 		"Body":  "Welcome to the home page",
 	}
 
 	// Router is accessed in context and used for rending. Same as r.Render()
 	// but this way you don't need r in scope.
-	egor.Render(w, req, "home.html", data)
+	gor.Render(w, req, "home.html", data)
 }
 
 func AboutHandler(w http.ResponseWriter, req *http.Request) {
-	data := egor.Map{
+	data := gor.Map{
 		"Title": "About Page",
 		"Body":  "Welcome to the about page",
 	}
-	egor.Render(w, req, "about.html", data)
+	gor.Render(w, req, "about.html", data)
 }
 
 func NestedTemplate(w http.ResponseWriter, req *http.Request) {
-	egor.Render(w, req, "doctor/doctor.html", egor.Map{})
+	gor.Render(w, req, "doctor/doctor.html", gor.Map{})
 }
 
 func ApiHandler(w http.ResponseWriter, req *http.Request) {
@@ -51,13 +51,13 @@ func ApiHandler(w http.ResponseWriter, req *http.Request) {
 			Author:    "Abiira Nathan",
 		},
 		{
-			Title:     "Adding route groups in egor",
+			Title:     "Adding route groups in gor",
 			Completed: false,
 			Author:    "Abiira Nathan",
 		},
 	}
 
-	egor.SendJSON(w, todos)
+	gor.SendJSON(w, todos)
 }
 
 // For more persistent sessions, use a database store.
@@ -90,20 +90,20 @@ func SessionMiddleware(next http.Handler) http.Handler {
 }
 
 func loginGetHandler(w http.ResponseWriter, req *http.Request) {
-	egor.Render(w, req, "login.html", egor.Map{})
+	gor.Render(w, req, "login.html", gor.Map{})
 }
 
 func main() {
-	templ, err := egor.ParseTemplatesRecursiveFS(viewsFS, "templates", template.FuncMap{}, ".html")
+	templ, err := gor.ParseTemplatesRecursiveFS(viewsFS, "templates", template.FuncMap{}, ".html")
 	if err != nil {
 		panic(err)
 	}
 
-	r := egor.NewRouter(
-		egor.WithTemplates(templ),
-		egor.PassContextToViews(true),
-		egor.BaseLayout("base.html"),
-		egor.ContentBlock("Content"),
+	r := gor.NewRouter(
+		gor.WithTemplates(templ),
+		gor.PassContextToViews(true),
+		gor.BaseLayout("base.html"),
+		gor.ContentBlock("Content"),
 	)
 
 	r.Get("/{$}", HomeHandler)
@@ -135,11 +135,10 @@ func main() {
 
 	r.Get("/users/{username}", func(w http.ResponseWriter, r *http.Request) {
 		username := r.PathValue("username")
-		egor.SendString(w, "Hello "+username)
+		gor.SendString(w, "Hello "+username)
 	})
 
-	srv := egor.NewServer(":8080", r)
+	srv := gor.NewServer(":8080", r)
 
 	log.Fatalln(srv.ListenAndServe())
-
 }

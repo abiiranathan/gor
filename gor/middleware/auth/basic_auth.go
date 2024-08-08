@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 // Basic Auth middleware.
 // If the username and password are not correct, a 401 status code is sent.
 // The realm is the realm to display in the login box. Default is "Restricted".
-func BasicAuth(username, password string, realm ...string) egor.Middleware {
+func BasicAuth(username, password string, realm ...string) gor.Middleware {
 	defaultRealm := "Restricted"
 	if len(realm) > 0 {
 		defaultRealm = realm[0]

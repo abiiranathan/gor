@@ -3,14 +3,14 @@ package logger
 import (
 	"errors"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 // LogFormat is the format of the log output, compatible with the new slog package.
@@ -31,7 +31,7 @@ type LoggerMiddleware struct {
 }
 
 // New creates a new LoggerMiddleware with the specified configuration.
-func New(output io.Writer, skip ...string) *LoggerMiddleware {
+func New(output io.Writer, skip ...string) gor.Middleware {
 	lm := &LoggerMiddleware{
 		Output: output,
 		Format: TextFormat,
@@ -43,21 +43,13 @@ func New(output io.Writer, skip ...string) *LoggerMiddleware {
 		},
 	}
 
-	return lm
+	return lm.Logger
 }
 
 // Logger is the middleware handler function for LoggerMiddleware.
 func (l *LoggerMiddleware) Logger(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		var skipThis bool
-		for _, s := range l.Skip {
-			if s == req.URL.Path {
-				skipThis = true
-				break
-			}
-		}
-
-		if skipThis {
+		if slices.Contains(l.Skip, req.URL.Path) {
 			handler.ServeHTTP(w, req)
 			return
 		}
@@ -73,17 +65,15 @@ func (l *LoggerMiddleware) Logger(handler http.Handler) http.Handler {
 		case JSONFormat:
 			logger = slog.New(slog.NewJSONHandler(l.Output, l.Options))
 		default:
-			log.Printf("Unknown log format: %d. Using default format\n", l.Format)
 			logger = slog.New(slog.NewTextHandler(l.Output, l.Options))
 		}
 
-		ipAddr, _ := getIP(req)
-
 		if l.LogIP {
-			logger.Info("", "status", w.(*egor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
+			ipAddr, _ := getIP(req)
+			logger.Info("", "status", w.(*gor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
 				"path", req.URL.Path, "ip", ipAddr)
 		} else {
-			logger.Info("", "status", w.(*egor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
+			logger.Info("", "status", w.(*gor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
 				"path", req.URL.Path)
 		}
 	})

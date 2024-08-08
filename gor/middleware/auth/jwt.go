@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -16,7 +16,7 @@ type claimsType string
 const jwtClaimsKey claimsType = "claims"
 
 // JWT creates a JWT middleware with the given secret and options.
-func JWT(secret string) egor.Middleware {
+func JWT(secret string) gor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// Extract the JWT token from the request

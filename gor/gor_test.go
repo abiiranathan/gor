@@ -1,4 +1,4 @@
-package egor_test
+package gor_test
 
 import (
 	"bytes"
@@ -17,43 +17,43 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 func TestRouterServeHTTP(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/test", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test")
+		gor.SendString(w, "test")
 	})
 	r.Get("/test2", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test2")
+		gor.SendString(w, "test2")
 	})
 	r.Get("/test3", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test3")
+		gor.SendString(w, "test3")
 	})
 	r.Post("/test4", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test4")
+		gor.SendString(w, "test4")
 	})
 	r.Put("/test5", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test5")
+		gor.SendString(w, "test5")
 	})
 	r.Delete("/test6", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test6")
+		gor.SendString(w, "test6")
 	})
 	r.Patch("/test7", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test7")
+		gor.SendString(w, "test7")
 	})
 	r.Options("/test8", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test8")
+		gor.SendString(w, "test8")
 	})
 	r.Head("/test9", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test9")
+		gor.SendString(w, "test9")
 	})
 	r.Connect("/test10", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test10")
+		gor.SendString(w, "test10")
 	})
 	r.Trace("/test11", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test11")
+		gor.SendString(w, "test11")
 	})
 
 	tests := []struct {
@@ -89,9 +89,9 @@ func TestRouterServeHTTP(t *testing.T) {
 
 // test 404
 func TestRouterNotFound(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/path", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test")
+		gor.SendString(w, "test")
 	})
 
 	w := httptest.NewRecorder()
@@ -110,15 +110,15 @@ type User struct {
 
 // test sending and reading form data
 func TestRouterUrlEncodedFormData(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Post("/urlencoded", func(w http.ResponseWriter, req *http.Request) {
 		u := User{}
-		err := egor.BodyParser(req, &u)
+		err := gor.BodyParser(req, &u)
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
-		egor.SendString(w, u.Name)
+		gor.SendString(w, u.Name)
 	})
 
 	form := url.Values{}
@@ -141,15 +141,15 @@ func TestRouterUrlEncodedFormData(t *testing.T) {
 
 // test sending and reading json data
 func TestRouterJSONData(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Post("/json", func(w http.ResponseWriter, req *http.Request) {
 		u := User{}
-		err := egor.BodyParser(req, &u)
+		err := gor.BodyParser(req, &u)
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
-		egor.SendJSON(w, u)
+		gor.SendJSON(w, u)
 	})
 
 	u := User{
@@ -183,15 +183,15 @@ func TestRouterJSONData(t *testing.T) {
 
 // multipart/form-data
 func TestRouterMultipartFormData(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Post("/multipart", func(w http.ResponseWriter, req *http.Request) {
 		u := User{}
-		err := egor.BodyParser(req, &u)
+		err := gor.BodyParser(req, &u)
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
-		egor.SendString(w, u.Name)
+		gor.SendString(w, u.Name)
 	})
 
 	body := &bytes.Buffer{}
@@ -217,17 +217,17 @@ func TestRouterMultipartFormData(t *testing.T) {
 
 // multipart/form-data with file
 func TestRouterMultipartFormDataWithFile(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Post("/upload", func(w http.ResponseWriter, req *http.Request) {
-		fileHeader, err := egor.FormFile(req, "file")
+		fileHeader, err := gor.FormFile(req, "file")
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
 
 		data, err := fileHeader.Open()
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
 		defer data.Close()
@@ -235,7 +235,7 @@ func TestRouterMultipartFormDataWithFile(t *testing.T) {
 		buf := &bytes.Buffer{}
 		_, err = buf.ReadFrom(data)
 		if err != nil {
-			egor.SendString(w, err.Error())
+			gor.SendString(w, err.Error())
 			return
 		}
 		w.Write(buf.Bytes())
@@ -283,7 +283,7 @@ const authContextKey contextType = "auth"
 
 // test route middleware
 func TestRouterMiddleware(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			context := context.WithValue(req.Context(), authContextKey, "johndoe")
@@ -296,10 +296,10 @@ func TestRouterMiddleware(t *testing.T) {
 		auth, ok := req.Context().Value(authContextKey).(string)
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
-			egor.SendString(w, "no auth")
+			gor.SendString(w, "no auth")
 			return
 		}
-		egor.SendString(w, auth)
+		gor.SendString(w, auth)
 	})
 
 	w := httptest.NewRecorder()
@@ -319,24 +319,24 @@ const msgKey contextType = "message"
 
 // test chaining of middlewares
 func TestRouterChainMiddleware(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			egor.SetContextValue(req, msgKey, "first")
+			gor.SetContextValue(req, msgKey, "first")
 			next.ServeHTTP(w, req)
 		})
 	})
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			message, ok := egor.GetContextValue(req, msgKey).(string)
+			message, ok := gor.GetContextValue(req, msgKey).(string)
 			if !ok {
 				w.WriteHeader(http.StatusInternalServerError)
-				egor.SendString(w, "no message")
+				gor.SendString(w, "no message")
 				return
 			}
 
-			egor.SetContextValue(req, msgKey, message+" second")
+			gor.SetContextValue(req, msgKey, message+" second")
 			next.ServeHTTP(w, req)
 		})
 	})
@@ -346,19 +346,19 @@ func TestRouterChainMiddleware(t *testing.T) {
 			message, ok := req.Context().Value(msgKey).(string)
 			if !ok {
 				w.WriteHeader(http.StatusInternalServerError)
-				egor.SendString(w, "no message")
+				gor.SendString(w, "no message")
 				return
 			}
-			egor.SendString(w, message)
+			gor.SendString(w, message)
 		}, func(h http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				message, ok := egor.GetContextValue(req, msgKey).(string)
+				message, ok := gor.GetContextValue(req, msgKey).(string)
 				if !ok {
 					w.WriteHeader(http.StatusInternalServerError)
-					egor.SendString(w, "no message")
+					gor.SendString(w, "no message")
 					return
 				}
-				egor.SetContextValue(req, msgKey, message+" third")
+				gor.SetContextValue(req, msgKey, message+" third")
 				h.ServeHTTP(w, req)
 			})
 		})
@@ -378,22 +378,22 @@ func TestRouterChainMiddleware(t *testing.T) {
 
 // test render with a base layout
 func TestRouterRenderWithBaseLayout(t *testing.T) {
-	templ, err := egor.ParseTemplatesRecursive("../cmd/server/templates",
+	templ, err := gor.ParseTemplatesRecursive("../cmd/server/templates",
 		template.FuncMap{"upper": strings.ToUpper}, ".html")
 
 	if err != nil {
 		panic(err)
 	}
 
-	r := egor.NewRouter(
-		egor.BaseLayout("base.html"),
-		egor.ContentBlock("Content"),
-		egor.PassContextToViews(true),
-		egor.WithTemplates(templ),
+	r := gor.NewRouter(
+		gor.BaseLayout("base.html"),
+		gor.ContentBlock("Content"),
+		gor.PassContextToViews(true),
+		gor.WithTemplates(templ),
 	)
 
 	r.Get("/home_page", func(w http.ResponseWriter, req *http.Request) {
-		data := egor.Map{
+		data := gor.Map{
 			"Title": "Home Page",
 			"Body":  "Welcome to the home page",
 		}
@@ -403,7 +403,7 @@ func TestRouterRenderWithBaseLayout(t *testing.T) {
 		r.Render(w, req, "home.html", data)
 
 		if err != nil {
-			egor.SendError(w, req, err, http.StatusInternalServerError)
+			gor.SendError(w, req, err, http.StatusInternalServerError)
 		}
 	})
 
@@ -469,7 +469,7 @@ func TestRouterStatic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Static("/static", dirname)
 
 	w := httptest.NewRecorder()
@@ -513,7 +513,7 @@ func TestRouterFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.File("/static/test.txt", file)
 
 	w := httptest.NewRecorder()
@@ -536,15 +536,15 @@ func TestRouterFile(t *testing.T) {
 
 // Test route groups
 func TestRouterGroup(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	admin := r.Group("/admin")
 
 	admin.Get("/home", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test")
+		gor.SendString(w, "test")
 	})
 
 	admin.Get("/users", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test2")
+		gor.SendString(w, "test2")
 	})
 
 	// test /admin/test
@@ -576,22 +576,22 @@ func TestRouterGroup(t *testing.T) {
 
 // test groups with middleware
 func TestRouterGroupMiddleware(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	admin := r.Group("/admin", func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			egor.SetContextValue(req, "admin", "admin middleware")
+			gor.SetContextValue(req, "admin", "admin middleware")
 			next.ServeHTTP(w, req)
 		})
 	})
 
 	admin.Get("/test", func(w http.ResponseWriter, req *http.Request) {
-		admin, ok := egor.GetContextValue(req, "admin").(string)
+		admin, ok := gor.GetContextValue(req, "admin").(string)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
-			egor.SendString(w, "no admin")
+			gor.SendString(w, "no admin")
 			return
 		}
-		egor.SendString(w, admin)
+		gor.SendString(w, admin)
 	})
 
 	// test /admin/test
@@ -610,12 +610,12 @@ func TestRouterGroupMiddleware(t *testing.T) {
 
 // test nested groups
 func TestRouterNestedGroup(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	admin := r.Group("/admin")
 	users := admin.Group("/users")
 
 	users.Get("/test", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "test")
+		gor.SendString(w, "test")
 	})
 
 	// test /admin/users/test
@@ -632,15 +632,15 @@ func TestRouterNestedGroup(t *testing.T) {
 	}
 }
 
-// test egor.Redirect
+// test gor.Redirect
 func TestRouterRedirect(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/redirect1", func(w http.ResponseWriter, req *http.Request) {
-		egor.Redirect(w, req, "/redirect2", http.StatusFound)
+		gor.Redirect(w, req, "/redirect2", http.StatusFound)
 	})
 
 	r.Get("/redirect2", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "redirect2")
+		gor.SendString(w, "redirect2")
 	})
 
 	w := httptest.NewRecorder()
@@ -655,13 +655,13 @@ func TestRouterRedirect(t *testing.T) {
 
 // test redirect route
 func TestRouterRedirectRoute(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/redirect_route1", func(w http.ResponseWriter, req *http.Request) {
 		r.RedirectRoute(w, req, "/redirect_route2", http.StatusFound)
 	})
 
 	r.Get("/redirect_route2", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "redirect_route2")
+		gor.SendString(w, "redirect_route2")
 	})
 
 	w := httptest.NewRecorder()
@@ -739,9 +739,9 @@ func SaveFile(fh *multipart.FileHeader, dst string) error {
 
 // test Query
 func TestRouterQuery(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/query", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, egor.Query(req, "name", "default"))
+		gor.SendString(w, gor.Query(req, "name", "default"))
 	})
 
 	w := httptest.NewRecorder()
@@ -759,9 +759,9 @@ func TestRouterQuery(t *testing.T) {
 
 // test QueryInt
 func TestRouterQueryInt(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/queryint", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, strconv.Itoa(egor.QueryInt(req, "age", 0)))
+		gor.SendString(w, strconv.Itoa(gor.QueryInt(req, "age", 0)))
 	})
 
 	w := httptest.NewRecorder()
@@ -779,9 +779,9 @@ func TestRouterQueryInt(t *testing.T) {
 
 // test ParamInt
 func TestRouterParamInt(t *testing.T) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/paramint/{age}", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, req.PathValue("age"))
+		gor.SendString(w, req.PathValue("age"))
 	})
 
 	w := httptest.NewRecorder()
@@ -799,9 +799,9 @@ func TestRouterParamInt(t *testing.T) {
 
 // Write a benchmark test for the router
 func BenchmarkRouter(b *testing.B) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/benchmark", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "Hello World!")
+		gor.SendString(w, "Hello World!")
 	})
 
 	w := httptest.NewRecorder()
@@ -814,9 +814,9 @@ func BenchmarkRouter(b *testing.B) {
 
 // bench mark full request/response cycle
 func BenchmarkRouterFullCycle(b *testing.B) {
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.Get("/benchmark-cycle", func(w http.ResponseWriter, req *http.Request) {
-		egor.SendString(w, "Hello World!")
+		gor.SendString(w, "Hello World!")
 	})
 
 	ts := httptest.NewServer(r)
@@ -834,24 +834,44 @@ func BenchmarkRouterFullCycle(b *testing.B) {
 }
 
 func TestRouterExecuteTemplate(t *testing.T) {
-	templ, err := egor.ParseTemplatesRecursive("../cmd/server/templates",
+	templ, err := gor.ParseTemplatesRecursive("../cmd/server/templates",
 		template.FuncMap{"upper": strings.ToUpper}, ".html")
 
 	if err != nil {
 		panic(err)
 	}
 
-	r := egor.NewRouter(egor.WithTemplates(templ))
+	r := gor.NewRouter(gor.WithTemplates(templ))
 
 	r.Get("/template", func(w http.ResponseWriter, req *http.Request) {
-		data := egor.Map{
+		data := gor.Map{
 			"Title": "Template",
 			"Body":  "Welcome to the template page",
 		}
 
 		err := r.ExecuteTemplate(w, "home.html", data)
 		if err != nil {
-			egor.SendError(w, req, err, http.StatusInternalServerError)
+			gor.SendError(w, req, err, http.StatusInternalServerError)
+		}
+
+		// Test lookup template
+		templ, err = gor.LookupTemplate(req, "home.html")
+		if err != nil {
+			t.Errorf("expected to find home.html template")
+		}
+
+		out := new(bytes.Buffer)
+		err = templ.Execute(out, map[string]any{
+			"Title": "Template",
+			"Body":  "Named Template",
+		})
+
+		if err != nil {
+			t.Errorf("execute template failed")
+		}
+
+		if !strings.Contains(out.String(), "Named Template") {
+			t.Errorf("expected 'Named Template' in templated page, got %s", out.String())
 		}
 	})
 
@@ -883,7 +903,7 @@ func TestRouterFileFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.FileFS(http.Dir(dirname), "/static", "test.txt")
 
 	w := httptest.NewRecorder()
@@ -917,7 +937,7 @@ func TestRouterFaviconFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := egor.NewRouter()
+	r := gor.NewRouter()
 	r.FaviconFS(http.Dir(dirname), "favicon.ico")
 
 	w := httptest.NewRecorder()

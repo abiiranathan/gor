@@ -1,5 +1,5 @@
 /*
-Package egor(enhanced go router) is a minimalistic, robust http router based on the go 1.22
+Package gor(enhanced go router) is a minimalistic, robust http router based on the go 1.22
 enhanced routing capabilities. It adds a few features like middleware support, helper methods
 for defining routes, template rendering with automatic template inheritance(of a layout template),
 json,xml,form parsing based on content type, Single page application routing, grouping routes and more.
@@ -10,7 +10,7 @@ More middlewares can be added by implementing the Middleware type, a standard fu
 No external libraries are included in the main package. The only external library is the
 middleware package which is optional.
 */
-package egor
+package gor
 
 import (
 	"bufio"
@@ -53,7 +53,7 @@ type Map map[string]any
 // contextKey is the key used to store the custom CTX inside the request context.
 // Access the context with
 //
-//	ctx := req.Context().Value(egor.contextKey).(*egor.CTX)
+//	ctx := req.Context().Value(gor.contextKey).(*gor.CTX)
 const contextKey = contextType("ctx")
 
 type route struct {
@@ -87,12 +87,12 @@ type Router struct {
 }
 
 // CTX is the custom context passed inside the request context.
-// It carries a reference to the egor.Router and unexported fields
+// It carries a reference to the gor.Router and unexported fields
 // for tracking locals.
 //
 // It can be access from context with:
 //
-//	ctx := req.Context().Value(egor.ContextKey).(*egor.CTX)
+//	ctx := req.Context().Value(gor.ContextKey).(*gor.CTX)
 type CTX struct {
 	context  context.Context // The request context
 	localsMu *sync.RWMutex   // Mutex to syncronize access to the locals map
@@ -208,6 +208,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		// Reset the context
 		ctx.context = nil
 		ctx.Router = nil
+
 		for k := range ctx.locals {
 			delete(ctx.locals, k)
 		}
@@ -420,6 +421,7 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
+
 	// Create file server for the http.FileSystem
 	handler := http.FileServer(fs)
 
@@ -618,6 +620,17 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 		panic("No template is configured")
 	}
 
+	writeError := func(err error) {
+		if err != nil {
+			log.Println(err)
+			if writer, ok := w.(http.ResponseWriter); ok {
+				writer.Header().Set("Content-Type", ContentTypeHTML)
+				writer.Write([]byte(err.Error()))
+				writer.WriteHeader(http.StatusInternalServerError)
+			}
+		}
+	}
+
 	// pass the request context to the views
 	if r.passContextToViews {
 		ctx, ok := req.Context().Value(contextKey).(*CTX)
@@ -631,40 +644,22 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 	// if baseLayout and contentBlock are set, render the template with the base layout
 	if r.baseLayout != "" && r.contentBlock != "" {
 		err := r.renderTemplate(w, name, data)
-		if err != nil {
-			log.Println(err)
-
-			// send the error
-			if writer, ok := w.(http.ResponseWriter); ok {
-				writer.Header().Set("Content-Type", ContentTypeHTML)
-				writer.Write([]byte(err.Error()))
-				writer.WriteHeader(http.StatusInternalServerError)
-			}
-		}
+		writeError(err)
 		return
 	}
 
-	fmt.Println(data)
 	err := r.template.ExecuteTemplate(w, name, data)
-	if err != nil {
-		log.Println(err)
+	writeError(err)
 
-		// send the error
-		if writer, ok := w.(http.ResponseWriter); ok {
-			writer.Header().Set("Content-Type", ContentTypeHTML)
-			writer.Write([]byte(err.Error()))
-			writer.WriteHeader(http.StatusInternalServerError)
-		}
-	}
 }
 
 // Render a template of given name and pass the data to it.
-// Make sure you are using egor.Router. Otherwise this function will panic.
+// Make sure you are using gor.Router. Otherwise this function will panic.
 // If a file extension is missing, it will be appended as ".html".
 func Render(w io.Writer, req *http.Request, name string, data Map) {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
-		panic("You are not using egor.Router. You cannot use this function")
+		panic("You are not using gor.Router. You cannot use this function")
 	}
 	ctx.Router.Render(w, req, name, data)
 }
@@ -683,12 +678,40 @@ func (r *Router) ExecuteTemplate(w io.Writer, name string, data Map) error {
 }
 
 // Execute a standalone template without a layout.
+// To execute a named template-without inserting base layout, first call
+// LookupTemplate and then execute it yourself using standard html/template
+// semantics. If the extension is missing in name, .html is assumed.
 func ExecuteTemplate(w io.Writer, req *http.Request, name string, data Map) error {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
-		panic("You are not using egor.Router. You cannot use this function")
+		panic("You are not using gor.Router. You cannot use this function")
 	}
+
+	// append the file extension if missing
+	if filepath.Ext(name) == "" {
+		name = name + ".html"
+	}
+
 	return ctx.Router.ExecuteTemplate(w, name, data)
+}
+
+// Execute a standalone template without a layout.
+// If the extension is missing in name, .html is assumed.
+func LookupTemplate(req *http.Request, name string) (*template.Template, error) {
+	ctx, ok := req.Context().Value(contextKey).(*CTX)
+	if !ok {
+		return nil, fmt.Errorf("you are not using gor.Router. You cannot use this function")
+	}
+
+	if ctx.Router.template == nil {
+		return nil, fmt.Errorf("template is nil")
+	}
+
+	t := ctx.Router.template.Lookup(name)
+	if t == nil {
+		return nil, fmt.Errorf("no such template '%s'", name)
+	}
+	return t, nil
 }
 
 func (r *Router) Redirect(w http.ResponseWriter, req *http.Request, url string, status ...int) {
@@ -707,7 +730,8 @@ func (r *Router) RedirectRoute(w http.ResponseWriter, req *http.Request, pathnam
 	for _, route := range r.routes {
 		// split prefix into method and path
 		parts := strings.Split(route.prefix, " ")
-		if parts[1] == pathname {
+		name := strings.TrimSpace(parts[1])
+		if name == pathname {
 			handler = route.handler
 			break
 		}

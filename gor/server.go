@@ -1,4 +1,4 @@
-package egor
+package gor
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 // Wrapper around the standard http.Server.
 // Adds easy graceful shutdown and functional options for customizing the server.
-// This is the default server used by egor.
+// This is the default server used by gor.
 type Server struct {
 	*http.Server
 }

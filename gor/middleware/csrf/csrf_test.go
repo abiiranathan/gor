@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/abiiranathan/egor/egor"
-	"github.com/abiiranathan/egor/egor/middleware/csrf"
+	"github.com/abiiranathan/gor/gor"
+	"github.com/abiiranathan/gor/gor/middleware/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -20,10 +20,10 @@ type user struct {
 }
 
 func TestCSRF(t *testing.T) {
-	router := egor.NewRouter()
+	router := gor.NewRouter()
 
 	store := sessions.NewCookieStore([]byte("super secret token"))
-	router.Use(csrf.New(store).Middleware)
+	router.Use(csrf.New(store))
 
 	router.Get("/csrf", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello CSRF"))
@@ -31,13 +31,13 @@ func TestCSRF(t *testing.T) {
 
 	router.Post("/csrf", func(w http.ResponseWriter, r *http.Request) {
 		var u user
-		err := egor.BodyParser(r, &u)
+		err := gor.BodyParser(r, &u)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
-		egor.SendJSON(w, u)
+		gor.SendJSON(w, u)
 	})
 
 	// create request

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 	"github.com/gorilla/sessions"
 )
 
@@ -62,7 +62,6 @@ func FromQuery(req *http.Request, key string) (string, error) {
 	return token, nil
 }
 
-// ========= IMPLEMENTATION =========
 type csrf struct {
 	// The key to look for the CSRF token in the request header, query, form, or cookie.
 	// Defaults to "X-CSRF-Token".
@@ -103,8 +102,8 @@ type csrf struct {
 //		SameSite: http.SameSiteLaxMode,
 //	}
 //
-//	mux.Use(middleware.New(store).Middleware)
-func New(store sessions.Store, options ...CSRFOption) *csrf {
+//	mux.Use(middleware.New(store))
+func New(store sessions.Store, options ...CSRFOption) gor.Middleware {
 	c := &csrf{
 		HeaderKeyName: headerKeyName,
 		tokenGetter: func(req *http.Request) (string, error) {
@@ -132,7 +131,7 @@ func New(store sessions.Store, options ...CSRFOption) *csrf {
 		opt(c)
 	}
 
-	return c
+	return c.Middleware
 }
 
 type CSRFOption func(*csrf)
@@ -161,6 +160,7 @@ func (c *csrf) verifyToken(req *http.Request) bool {
 	if err != nil {
 		return false
 	}
+
 	expectedToken, ok := session.Values["token"].(string)
 	if !ok {
 		return false
@@ -222,7 +222,7 @@ func (c *csrf) Middleware(next http.Handler) http.Handler {
 			// We still need to set the token in the response header for GET requests.
 			// if the key is not valid, the next request will fail.
 			w.Header().Set(c.HeaderKeyName, token)
-			egor.SetContextValue(req, TokenContextType(formKeyName), token)
+			gor.SetContextValue(req, TokenContextType(formKeyName), token)
 
 			// fmt.Println("Token:", token)
 			next.ServeHTTP(w, req)
@@ -247,7 +247,7 @@ func (c *csrf) Middleware(next http.Handler) http.Handler {
 }
 
 func TokenFromRequest(req *http.Request) string {
-	token, ok := egor.GetContextValue(req, TokenContextType(formKeyName)).(string)
+	token, ok := gor.GetContextValue(req, TokenContextType(formKeyName)).(string)
 	if !ok {
 		return ""
 	}

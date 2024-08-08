@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 // CORSOptions is the configuration for the CORS middleware.
@@ -21,7 +21,7 @@ type CORSOptions struct {
 
 // New middleware.
 // If the origin is not allowed, a 403 status code is sent.
-func New(opts ...CORSOptions) egor.Middleware {
+func New(opts ...CORSOptions) gor.Middleware {
 	var options = CORSOptions{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},

@@ -1,4 +1,4 @@
-package egor
+package gor
 
 import (
 	"context"
@@ -104,6 +104,7 @@ func SendJSONError(w http.ResponseWriter, resp map[string]any, status ...int) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// Returns the header content type.
 func GetContentType(req *http.Request) string {
 	// content-type may contain additional information like charset
 	ct := req.Header.Get("Content-Type")

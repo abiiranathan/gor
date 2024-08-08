@@ -8,12 +8,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/abiiranathan/egor/egor"
-	"github.com/abiiranathan/egor/egor/middleware/cors"
-	"github.com/abiiranathan/egor/egor/middleware/csrf"
-	"github.com/abiiranathan/egor/egor/middleware/etag"
-	"github.com/abiiranathan/egor/egor/middleware/logger"
-	"github.com/abiiranathan/egor/egor/middleware/recovery"
+	"github.com/abiiranathan/gor/gor"
+	"github.com/abiiranathan/gor/gor/middleware/cors"
+	"github.com/abiiranathan/gor/gor/middleware/csrf"
+	"github.com/abiiranathan/gor/gor/middleware/etag"
+	"github.com/abiiranathan/gor/gor/middleware/logger"
+	"github.com/abiiranathan/gor/gor/middleware/recovery"
 	"github.com/gorilla/sessions"
 )
 
@@ -21,20 +21,20 @@ import (
 var static embed.FS
 
 func main() {
-	t, err := egor.ParseTemplatesRecursiveFS(static, "static", template.FuncMap{})
+	t, err := gor.ParseTemplatesRecursiveFS(static, "static", template.FuncMap{})
 	if err != nil {
 		panic(err)
 	}
 
 	// Create a new router
-	egor.NoTrailingSlash = true
-	mux := egor.NewRouter(
-		egor.WithTemplates(t),
-		egor.PassContextToViews(true),
+	gor.NoTrailingSlash = true
+	mux := gor.NewRouter(
+		gor.WithTemplates(t),
+		gor.PassContextToViews(true),
 	)
 
 	mux.Use(recovery.New(false))
-	mux.Use(logger.New(os.Stderr).Logger)
+	mux.Use(logger.New(os.Stderr))
 	mux.Use(etag.New())
 	mux.Use(cors.New())
 
@@ -48,12 +48,12 @@ func main() {
 		SameSite: http.SameSiteLaxMode,
 	}
 
-	mux.Use(csrf.New(store).Middleware)
+	mux.Use(csrf.New(store))
 	mux.StaticFS("/static", http.FS(static))
 	// mux.Static("/static/", "static")
 
 	mux.Get("/test/{id}/", func(w http.ResponseWriter, r *http.Request) {
-		egor.Redirect(w, r, "/redirect")
+		gor.Redirect(w, r, "/redirect")
 
 		// id := r.PathValue("id")
 		// fmt.Fprintf(w, "Hello, you lucky number is %s!\n", id)
@@ -64,11 +64,11 @@ func main() {
 	})
 
 	mux.Get("/api", func(w http.ResponseWriter, r *http.Request) {
-		egor.SendJSONError(w, map[string]any{"error": "This is an error"}, http.StatusBadRequest)
+		gor.SendJSONError(w, map[string]any{"error": "This is an error"}, http.StatusBadRequest)
 	})
 
 	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		egor.Render(w, r, "index.html", egor.Map{})
+		gor.Render(w, r, "index.html", gor.Map{})
 	})
 
 	mux.Post("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +83,12 @@ func main() {
 
 	mux.FaviconFS(http.FS(static), "static/favicon.ico")
 
-	opts := []egor.ServerOption{
-		egor.WithReadTimeout(time.Second * 10),
-		egor.WithWriteTimeout(time.Second * 15),
+	opts := []gor.ServerOption{
+		gor.WithReadTimeout(time.Second * 10),
+		gor.WithWriteTimeout(time.Second * 15),
 	}
 
-	server := egor.NewServer(":8080", mux, opts...)
+	server := gor.NewServer(":8080", mux, opts...)
 	defer server.GracefulShutdown()
 	server.ListenAndServe()
 }

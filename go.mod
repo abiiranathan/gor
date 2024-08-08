@@ -1,4 +1,4 @@
-module github.com/abiiranathan/egor
+module github.com/abiiranathan/gor
 
 go 1.22.0
 

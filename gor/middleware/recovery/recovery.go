@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 // Panic recovery middleware.
 // If stack trace is true, a stack trace will be logged.
 // If errorHandler is passed, it will be called with the error. No response will be sent to the client.
 // Otherwise the error will be logged and sent with a 500 status code.
-func New(stackTrace bool, errorHandler ...func(err error)) egor.Middleware {
+func New(stackTrace bool, errorHandler ...func(err error)) gor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			defer func() {

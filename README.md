@@ -1,16 +1,16 @@
-# egor
+# gor
 
-Package egor(enhanced go router) implements a minimalistic but robust http router based on the standard go 1.22 enhanced routing capabilities in the `http.ServeMux`. It adds features like middleware support, helper methods for defining routes, template rendering with automatic template inheritance (of a base template).
+Package gor (go router) implements a minimalistic but robust http router based on the standard go 1.22 enhanced routing capabilities in the `http.ServeMux`. It adds features like middleware support, helper methods for defining routes, template rendering with automatic template inheritance (of a base template).
 
 It also has a BodyParser that decodes json, xml, url-encoded and multipart forms
 based on content type. Form parsing supports all standard go types(and their pointers)
-and slices of standard types. It also supports custom types that implement the `egor.FormScanner` interface.
+and slices of standard types. It also supports custom types that implement the `gor.FormScanner` interface.
 
 
 ## Installation
 
 ```bash
-go get -u github.com/abiiranathan/egor
+go get -u github.com/abiiranathan/gor
 ```
 
 Example of a custom type that implements the FormScanner interface
@@ -38,7 +38,7 @@ func (d *Date) FormScan(value interface{}) error {
 }
 ```
 
-egor supports single page application routing with a dedicated method `r.SPAHandler` that serves the index.html file for all routes that do not match a file or directory in the root directory of the SPA.
+gor supports single page application routing with a dedicated method `r.SPAHandler` that serves the index.html file for all routes that do not match a file or directory in the root directory of the SPA.
 
 The router also supports route groups and subgroups with middleware that can be applied to the entire group or individual routes.
 
@@ -59,16 +59,16 @@ import (
 	"os"
 	"time"
 
-    "github.com/abiiranathan/egor/egor"
-	"github.com/abiiranathan/egor/egor/middleware"
+    "github.com/abiiranathan/gor/gor"
+	"github.com/abiiranathan/gor/gor/middleware"
 )
 
 func main() {
-    r := egor.NewRouter()
-    r.Use(egor.Logger(os.Stdout))
-    r.Use(egor.Recovery(true))
-    r.Use(egor.Cors())
-    r.Use(egor.ETag())
+    r := gor.NewRouter()
+    r.Use(gor.Logger(os.Stdout))
+    r.Use(gor.Recovery(true))
+    r.Use(gor.Cors())
+    r.Use(gor.ETag())
 
     r.Get("/", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "Hello, World!")
@@ -97,14 +97,14 @@ func main() {
 
 
 ## Rendering Templates
-See the [example](./cmd/server/main.go) for a complete example of how to use the egor package.
+See the [example](./cmd/server/main.go) for a complete example of how to use the gor package.
 
 ```go
 
 package main
 
 import (
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 	"embed"
 	"log"
 	"net/http"
@@ -124,7 +124,7 @@ func HomeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	// Router is accessed in context and used for rending. Same as r.Render()
 	// but this way you don't need r in scope.
-	egor.Render(w, req, "home.html", data)
+	gor.Render(w, req, "home.html", data)
 }
 
 func AboutHandler(w http.ResponseWriter, req *http.Request) {
@@ -132,40 +132,40 @@ func AboutHandler(w http.ResponseWriter, req *http.Request) {
 		"Title": "About Page",
 		"Body":  "Welcome to the about page",
 	}
-	egor.Render(w, req, "about.html", data)
+	gor.Render(w, req, "about.html", data)
 }
 
 func NestedTemplate(w http.ResponseWriter, req *http.Request) {
-	egor.Render(w, req, "doctor/doctor.html", map[string]any{})
+	gor.Render(w, req, "doctor/doctor.html", map[string]any{})
 }
 
 
 func main() {
-	templ, err := egor.ParseTemplatesRecursiveFS(viewsFS, "templates", template.FuncMap{}, ".html")
+	templ, err := gor.ParseTemplatesRecursiveFS(viewsFS, "templates", template.FuncMap{}, ".html")
 	if err != nil {
 		panic(err)
 	}
 
     /*
     OR 
-    templ, err := egor.ParseTemplatesRecursive(viewsDirname, template.FuncMap{}, ".html")
+    templ, err := gor.ParseTemplatesRecursive(viewsDirname, template.FuncMap{}, ".html")
 	if err != nil {
 		panic(err)
 	}
     */
 
-	r := egor.NewRouter(
-		egor.WithTemplates(templ),
-		egor.PassContextToViews(true),
-		egor.BaseLayout("base.html"),
-		egor.ContentBlock("Content"),
+	r := gor.NewRouter(
+		gor.WithTemplates(templ),
+		gor.PassContextToViews(true),
+		gor.BaseLayout("base.html"),
+		gor.ContentBlock("Content"),
 	)
 
 	r.Get("/", HomeHandler)
 	r.Get("/about", AboutHandler)
 	r.Get("/doctor", NestedTemplate)
 
-	srv := egor.NewServer(":8080", r)
+	srv := gor.NewServer(":8080", r)
 	log.Fatalln(srv.ListenAndServe())
 }
 ```
@@ -174,27 +174,28 @@ No external libraries are included in the main package. Only a few external libr
 
 ## Helper functions at package level
 
- - `func SetContextValue(req *http.Request, key any, value interface{})`
- - `func GetContextValue(req *http.Request, key any) interface{}`
- - `func SendJSON(w http.ResponseWriter, data interface{}) error`
- - `func SendString(w http.ResponseWriter, data string) error`
- - `func SendHTML(w http.ResponseWriter, html string) error`
- - `func SendFile(w http.ResponseWriter, req *http.Request, file string)`
- - `func SendError(w http.ResponseWriter, err error, status int)`
- - `func SendJSONError(w http.ResponseWriter, key, s string, status int)`
+- `func SetContextValue(req *http.Request, key any, value interface{})`
+- `func GetContextValue(req *http.Request, key any) interface{}`
+- `func SendJSON(w http.ResponseWriter, data interface{}) error`
+- `func SendString(w http.ResponseWriter, data string) error`
+- `func SendHTML(w http.ResponseWriter, html string) error`
+- `func SendFile(w http.ResponseWriter, req *http.Request, file string)`
+- `func SendError(w http.ResponseWriter, err error, status int)`
+- `func SendJSONError(w http.ResponseWriter, key, s string, status int)`
 - `func GetContentType(req *http.Request) string`
--  `func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int)`
--  `func Query(req *http.Request, key string, defaults ...string) string`
--  `func QueryInt(req *http.Request, key string, defaults ...int) int`
--  `func ParamInt(req *http.Request, key string, defaults ...int) int`
--  `func SaveFile(fh *multipart.FileHeader, dst string) error`
-  
+- `func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int)`
+- `func Query(req *http.Request, key string, defaults ...string) string`
+- `func QueryInt(req *http.Request, key string, defaults ...int) int`
+- `func ParamInt(req *http.Request, key string, defaults ...int) int`
+- `func SaveFile(fh *multipart.FileHeader, dst string) error`
 - `func FormValue(req *http.Request, key string) string`
 - `func FormData(req *http.Request) url.Values`
 - `func FormFile(req *http.Request, key string) (*multipart.FileHeader, error)`
 - `func FormFiles(req *http.Request, key string) ([]*multipart.FileHeader, error)`
 - `func ParseMultipartForm(req *http.Request, maxMemory ...int64) (*multipart.Form, error)`
 - `func BodyParser(req *http.Request, v interface{}) error`
+- `func ExecuteTemplate(w io.Writer, req *http.Request, name string, data gor.Map) error`
+- `ffunc LookupTemplate(req *http.Request, name string) (*template.Template, error)`
   
 ## Tests
     

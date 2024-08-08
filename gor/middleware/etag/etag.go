@@ -11,7 +11,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/abiiranathan/egor/egor"
+	"github.com/abiiranathan/gor/gor"
 )
 
 // etagResponseWriter is a wrapper around http.ResponseWriter that calculates the ETag
@@ -48,7 +48,7 @@ func (e *etagResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 // New creates a new middleware handler that generates ETags for the response
 // and validates the If-Match and If-None-Match headers.
-func New(skip ...func(r *http.Request) bool) egor.Middleware {
+func New(skip ...func(r *http.Request) bool) gor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var skipEtag bool
@@ -81,7 +81,7 @@ func New(skip ...func(r *http.Request) bool) egor.Middleware {
 			// Call the next handler
 			next.ServeHTTP(ew, r)
 
-			rw := w.(*egor.ResponseWriter)
+			rw := w.(*gor.ResponseWriter)
 			if rw.Status() != http.StatusOK {
 				ew.buf.WriteTo(w) // Write the buffer to the original response writer
 				return            // Don't generate ETags for invalid responses
