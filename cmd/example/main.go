@@ -89,6 +89,6 @@ func main() {
 	}
 
 	server := gor.NewServer(":8080", mux, opts...)
-	defer server.GracefulShutdown()
+	defer server.Shutdown()
 	server.ListenAndServe()
 }

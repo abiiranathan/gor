@@ -40,7 +40,7 @@ func NewServer(addr string, handler http.Handler, options ...ServerOption) *Serv
 
 // Gracefully shuts down the server. The default timeout is 5 seconds
 // To wait for pending connections.
-func (s *Server) GracefulShutdown(timeout ...time.Duration) {
+func (s *Server) Shutdown(timeout ...time.Duration) {
 	var t time.Duration
 	if len(timeout) > 0 {
 		t = timeout[0]
@@ -54,7 +54,7 @@ func (s *Server) GracefulShutdown(timeout ...time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), t)
 	defer cancel()
 
-	if err := s.Shutdown(ctx); err != nil {
+	if err := s.Server.Shutdown(ctx); err != nil {
 		panic(err)
 	}
 

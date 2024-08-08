@@ -139,6 +139,7 @@ func main() {
 	})
 
 	srv := gor.NewServer(":8080", r)
+	defer srv.Shutdown()
 
 	log.Fatalln(srv.ListenAndServe())
 }

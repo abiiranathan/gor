@@ -1,11 +1,21 @@
 # gor
 
-Package gor (go router) implements a minimalistic but robust http router based on the standard go 1.22 enhanced routing capabilities in the `http.ServeMux`. It adds features like middleware support, helper methods for defining routes, template rendering with automatic template inheritance (of a base template).
+Package **gor** (go router) implements a minimalistic but robust http router based on the standard go 1.22 enhanced routing capabilities in the `http.ServeMux`. It adds features like middleware support, helper methods for defining routes, template rendering with automatic template inheritance (of a base template).
 
 It also has a BodyParser that decodes json, xml, url-encoded and multipart forms
 based on content type. Form parsing supports all standard go types(and their pointers)
-and slices of standard types. It also supports custom types that implement the `gor.FormScanner` interface.
+and slices of standard types. 
+It also supports custom types that implement the `gor.FormScanner` interface.
 
+**gor** supports single page application routing with a dedicated method `r.SPAHandler` that serves the index.html file for all routes that do not match a file or directory in the root directory of the SPA.
+
+The router also supports route groups and subgroups with middleware that can be applied to the entire group or individual routes.
+
+It has customizable built-in middleware for logging using the slog package, panic recovery, etag, cors, basic auth and jwt middlewares.
+
+More middlewares can be added by implementing the Middleware type, a standard function that wraps an http.Handler. 
+
+See the middleware package for examples.
 
 ## Installation
 
@@ -13,7 +23,7 @@ and slices of standard types. It also supports custom types that implement the `
 go get -u github.com/abiiranathan/gor
 ```
 
-Example of a custom type that implements the FormScanner interface
+### Example of a custom type that implements the FormScanner interface
 ```go
 type FormScanner interface {
 	FormScan(value interface{}) error
@@ -21,12 +31,11 @@ type FormScanner interface {
 
 type Date time.Time // Date in format YYYY-MM-DD
 
-
 // FormScan implements the FormScanner interface
 func (d *Date) FormScan(value interface{}) error {
 	v, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("value is not a string")
+		return fmt.Errorf("date value is not a string")
 	}
 
 	t, err := time.Parse("2006-01-02", v)
@@ -38,62 +47,7 @@ func (d *Date) FormScan(value interface{}) error {
 }
 ```
 
-gor supports single page application routing with a dedicated method `r.SPAHandler` that serves the index.html file for all routes that do not match a file or directory in the root directory of the SPA.
 
-The router also supports route groups and subgroups with middleware that can be applied to the entire group or individual routes.
-
-
-It has customizable built-in middleware for logging using the slog package, panic recovery, etag, cors, basic auth and jwt middlewares.
-
-More middlewares can be added by implementing the Middleware type, a standard function that wraps an http.Handler. 
-
-See the middleware package for examples.
-
-
-```go
-package main
-
-import (
-	"fmt"
-	"net/http"
-	"os"
-	"time"
-
-    "github.com/abiiranathan/gor/gor"
-	"github.com/abiiranathan/gor/gor/middleware"
-)
-
-func main() {
-    r := gor.NewRouter()
-    r.Use(gor.Logger(os.Stdout))
-    r.Use(gor.Recovery(true))
-    r.Use(gor.Cors())
-    r.Use(gor.ETag())
-
-    r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprint(w, "Hello, World!")
-    })
-
-    r.Get("/hello/:name", func(w http.ResponseWriter, r *http.Request) {
-        name := r.PathValue("name")
-        fmt.Fprintf(w, "Hello, %s!", name)
-        // r.SendString(fmt.Sprintf("Hello, %s!", name))
-    })
-
-    admin := r.Group("/admin", AdminRequired)
-    admin.Get("/dashboard", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprint(w, "Admin Dashboard")
-    })
-
-    api := r.Group("/api")
-    api.Get("/users", func(w http.ResponseWriter, r *http.Request) {
-        users := []string{"John", "Doe", "Jane"}
-        r.SendJSON(w, users)
-    })
-
-}
-
-```
 
 
 ## Rendering Templates
@@ -122,6 +76,7 @@ func HomeHandler(w http.ResponseWriter, req *http.Request) {
 		"Title": "Home Page",
 		"Body":  "Welcome to the home page",
 	}
+
 	// Router is accessed in context and used for rending. Same as r.Render()
 	// but this way you don't need r in scope.
 	gor.Render(w, req, "home.html", data)
