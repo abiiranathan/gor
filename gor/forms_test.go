@@ -1,6 +1,7 @@
 package gor
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -360,9 +361,19 @@ func TestSetFieldMultipartFormRequired(t *testing.T) {
 	r := NewRouter()
 	r.Post("/test", func(w http.ResponseWriter, r *http.Request) {
 		var test TestStruct
-		if err := BodyParser(r, &test); err == nil {
+		err := BodyParser(r, &test)
+		if err == nil {
 			t.Errorf("BodyParser() error = %v, want %v", err, "required field field2 is empty")
 			return
+		}
+
+		if !errors.Is(err, &FormError{}) {
+			t.Errorf("expected FormError, got %T", err)
+		}
+
+		var f_err FormError = err.(FormError)
+		if f_err.Kind != RequiredFieldMissing {
+			t.Errorf("expected FormError.Kind of RequiredFieldMissing, got %v", f_err.Kind)
 		}
 
 		w.WriteHeader(http.StatusOK)

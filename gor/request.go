@@ -14,7 +14,7 @@ import (
 const (
 	ContentTypeJSON          string = "application/json"
 	ContentTypeXML           string = "application/xml"
-	ContentTypeXForm         string = "application/x-www-form-urlencoded"
+	ContentTypeUrlEncoded    string = "application/x-www-form-urlencoded"
 	ContentTypeMultipartForm string = "multipart/form-data"
 	ContentTypeHTML          string = "text/html"
 	ContentTypeCSV           string = "text/csv"

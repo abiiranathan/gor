@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"text/template"
@@ -33,11 +34,12 @@ func main() {
 		gor.PassContextToViews(true),
 	)
 
-	mux.Use(recovery.New(false))
-	mux.Use(logger.New(os.Stderr))
+	mux.Use(recovery.New(true))
+	mux.Use(logger.New(os.Stderr, logger.StdLogFlags))
 	mux.Use(etag.New())
 	mux.Use(cors.New())
 
+	// Create a cookie store.
 	var store = sessions.NewCookieStore([]byte("secret key"))
 	store.Options = &sessions.Options{
 		Path:     "/",
@@ -88,7 +90,9 @@ func main() {
 		gor.WithWriteTimeout(time.Second * 15),
 	}
 
-	server := gor.NewServer(":8080", mux, opts...)
+	server := gor.NewServer(":8000", mux, opts...)
 	defer server.Shutdown()
-	server.ListenAndServe()
+
+	log.Printf("Listening on %v\n", server.Addr)
+	log.Fatalln(server.ListenAndServe())
 }

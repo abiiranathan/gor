@@ -1,13 +1,10 @@
 package logger
 
 import (
-	"errors"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/abiiranathan/gor/gor"
@@ -15,27 +12,37 @@ import (
 
 // LogFormat is the format of the log output, compatible with the new slog package.
 type LogFormat int
+type LogFlags int8
 
 const (
 	TextFormat LogFormat = iota // This is the default format
 	JSONFormat                  // Log in JSON format
 )
 
+const (
+	LOG_IP LogFlags = 1 << iota
+	LOG_LATENCY
+	LOG_USERAGENT
+)
+
+const StdLogFlags LogFlags = LOG_LATENCY | LOG_IP
+
 // LoggerMiddleware is a middleware that logs the request and response information.
 type LoggerMiddleware struct {
 	Output  io.Writer
 	Format  LogFormat
-	LogIP   bool
+	Flags   LogFlags
 	Skip    []string
 	Options *slog.HandlerOptions
 }
 
-// New creates a new LoggerMiddleware with the specified configuration.
-func New(output io.Writer, skip ...string) gor.Middleware {
+// New creates a new LoggerMiddleware writing to output.
+// Modify what is logged with a bit-mask of flags.
+func New(output io.Writer, flags LogFlags, skip ...string) gor.Middleware {
 	lm := &LoggerMiddleware{
 		Output: output,
 		Format: TextFormat,
-		LogIP:  true,
+		Flags:  flags,
 		Skip:   skip,
 		Options: &slog.HandlerOptions{
 			Level:     slog.LevelInfo,
@@ -68,42 +75,17 @@ func (l *LoggerMiddleware) Logger(handler http.Handler) http.Handler {
 			logger = slog.New(slog.NewTextHandler(l.Output, l.Options))
 		}
 
-		if l.LogIP {
-			ipAddr, _ := getIP(req)
-			logger.Info("", "status", w.(*gor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
-				"path", req.URL.Path, "ip", ipAddr)
-		} else {
-			logger.Info("", "status", w.(*gor.ResponseWriter).Status(), "latency", latency, "method", req.Method,
-				"path", req.URL.Path)
+		args := []any{"status", w.(*gor.ResponseWriter).Status()}
+		if l.Flags&LOG_LATENCY != 0 {
+			args = append(args, "latency", latency)
 		}
+		args = append(args, "method", req.Method, "path", req.URL.Path)
+
+		if l.Flags&LOG_IP != 0 {
+			ipAddr, _ := gor.ClientIPAddress(req)
+			args = append(args, "ip", ipAddr)
+		}
+
+		logger.Info("", args...)
 	})
-}
-
-func getIP(r *http.Request) (string, error) {
-	ips := r.Header.Get("X-Forwarded-For")
-	splitIps := strings.Split(ips, ",")
-
-	if len(splitIps) > 0 {
-		// get last IP in list since ELB prepends other user defined IPs,
-		// meaning the last one is the actual client IP.
-		netIP := net.ParseIP(splitIps[len(splitIps)-1])
-		if netIP != nil {
-			return netIP.String(), nil
-		}
-	}
-
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return "", err
-	}
-
-	netIP := net.ParseIP(ip)
-	if netIP != nil {
-		ip := netIP.String()
-		if ip == "::1" {
-			return "127.0.0.1", nil
-		}
-		return ip, nil
-	}
-	return "", errors.New("IP not found")
 }

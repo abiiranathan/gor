@@ -52,6 +52,35 @@ func ParseMultipartForm(req *http.Request, maxMemory ...int64) (*multipart.Form,
 	return req.MultipartForm, err
 }
 
+// FormError represents an error encountered during body parsing.
+type FormError struct {
+	// The original error encountered.
+	Err error
+	// The kind of error encountered.
+	Kind FormErrorKind
+}
+
+// FormErrorKind represents the kind of error encountered during body parsing.
+type FormErrorKind string
+
+const (
+	// InvalidContentType indicates an unsupported content type.
+	InvalidContentType FormErrorKind = "invalid_content_type"
+	// InvalidStructPointer indicates that the provided v is not a pointer to a struct.
+	InvalidStructPointer FormErrorKind = "invalid_struct_pointer"
+	// RequiredFieldMissing indicates that a required field was not found.
+	RequiredFieldMissing FormErrorKind = "required_field_missing"
+	// UnsupportedType indicates that an unsupported type was encountered.
+	UnsupportedType FormErrorKind = "unsupported_type"
+	// ParseError indicates that an error occurred during parsing.
+	ParseError FormErrorKind = "parse_error"
+)
+
+// Error implements the error interface.
+func (e FormError) Error() string {
+	return fmt.Sprintf("BodyParser error: kind=%s, err=%s", e.Kind, e.Err)
+}
+
 // BodyParser parses the request body and stores the result in v.
 // v must be a pointer to a struct.
 // Supported content types: application/json, application/x-www-form-urlencoded, multipart/form-data, application/xml
@@ -65,48 +94,50 @@ func BodyParser(req *http.Request, v interface{}) error {
 	// Make sure v is a pointer to a struct
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("v must be a pointer to a struct")
+		return FormError{
+			Err:  fmt.Errorf("v must be a pointer to a struct"),
+			Kind: InvalidStructPointer,
+		}
 	}
 
 	contentType := GetContentType(req)
 
 	if contentType == ContentTypeJSON {
 		decoder := json.NewDecoder(req.Body)
-		return decoder.Decode(v)
-	} else if contentType == ContentTypeXForm {
-		err := req.ParseForm()
+		err := decoder.Decode(v)
 		if err != nil {
-			return err
-		}
-
-		data := make(map[string]interface{})
-
-		for k, v := range req.Form {
-			vLen := len(v)
-			if vLen == 0 {
-				continue // The struct will have the default value
+			return FormError{
+				Err:  err,
+				Kind: ParseError,
 			}
-
-			if vLen == 1 {
-				// skip empty values. Parsing "" to int, float, bool, etc causes errors.
-				// Ignore to keep the default value of the struct field.
-				// The user can check if the field is empty using the required tag.
-				if v[0] == "" {
-					continue
+		}
+		return nil
+	} else if contentType == ContentTypeUrlEncoded || contentType == ContentTypeMultipartForm {
+		var form *multipart.Form
+		var err error
+		if contentType == ContentTypeMultipartForm {
+			form, err = ParseMultipartForm(req)
+			if err != nil {
+				return FormError{
+					Err:  err,
+					Kind: ParseError,
 				}
-				data[k] = v[0] // if there's only one value.
-			} else {
-				data[k] = v // array of values
 			}
-		}
-		return parseFormData(data, v)
-	} else if contentType == ContentTypeMultipartForm {
-		form, err := ParseMultipartForm(req)
-		if err != nil {
-			return err
+		} else {
+			err = req.ParseForm()
+			if err != nil {
+				return FormError{
+					Err:  err,
+					Kind: ParseError,
+				}
+			}
+			form = &multipart.Form{
+				Value: req.Form,
+			}
 		}
 
 		data := make(map[string]interface{})
+
 		for k, v := range form.Value {
 			vLen := len(v)
 			if vLen == 0 {
@@ -125,12 +156,29 @@ func BodyParser(req *http.Request, v interface{}) error {
 				data[k] = v // array of values
 			}
 		}
-		return parseFormData(data, v)
+		err = parseFormData(data, v)
+		if err != nil {
+			return FormError{
+				Err:  err,
+				Kind: ParseError,
+			}
+		}
+		return nil
 	} else if contentType == ContentTypeXML {
 		xmlDecoder := xml.NewDecoder(req.Body)
-		return xmlDecoder.Decode(v)
+		err := xmlDecoder.Decode(v)
+		if err != nil {
+			return FormError{
+				Err:  err,
+				Kind: ParseError,
+			}
+		}
+		return nil
 	} else {
-		return fmt.Errorf("unsupported content type: %s", contentType)
+		return FormError{
+			Err:  fmt.Errorf("unsupported content type: %s", contentType),
+			Kind: InvalidContentType,
+		}
 	}
 }
 
@@ -180,7 +228,10 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 		value, ok := data[tag]
 		if !ok {
 			if required {
-				return fmt.Errorf("required field %s not found", tag)
+				return FormError{
+					Err:  fmt.Errorf("required field %s not found", tag),
+					Kind: RequiredFieldMissing,
+				}
 			}
 			continue
 		}
@@ -188,7 +239,10 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 		// set the value
 		fieldVal := rv.Field(i)
 		if err := setField(fieldVal, value); err != nil {
-			return err
+			return FormError{
+				Err:  err,
+				Kind: ParseError,
+			}
 		}
 	}
 
@@ -254,10 +308,13 @@ func setField(fieldVal reflect.Value, value interface{}) error {
 			if scanner, ok := fieldVal.Addr().Interface().(FormScanner); ok {
 				return scanner.FormScan(value)
 			}
-			return fmt.Errorf("unsupported type: %s", fieldVal.Kind())
+			return FormError{
+				Err:  fmt.Errorf("unsupported type: %s, a custom struct must implement gor.FormScanner interface", fieldVal.Kind()),
+				Kind: UnsupportedType,
+			}
 		}
 	default:
-		// check if the field implements the FormScanner interface (even if it's a pointer
+		// check if the field implements the FormScanner interface (even if it's a pointer)
 		if fieldVal.Kind() == reflect.Ptr {
 			if fieldVal.Elem().Kind() == reflect.Struct {
 				if scanner, ok := fieldVal.Interface().(FormScanner); ok {
@@ -270,7 +327,10 @@ func setField(fieldVal reflect.Value, value interface{}) error {
 				return scanner.FormScan(value)
 			}
 		} else {
-			return fmt.Errorf("unsupported type: %s", fieldVal.Kind())
+			return FormError{
+				Err:  fmt.Errorf("unsupported type: %s, a custom struct must implement gor.FormScanner interface", fieldVal.Kind()),
+				Kind: UnsupportedType,
+			}
 		}
 	}
 
@@ -291,7 +351,10 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 				valueSlice[i] = strings.TrimSpace(valueSlice[i])
 			}
 		} else {
-			return fmt.Errorf("unsupported slice type: %T with value: %v", value, value)
+			return FormError{
+				Err:  fmt.Errorf("unsupported slice type: %T with value: %v", value, value),
+				Kind: UnsupportedType,
+			}
 		}
 	}
 
@@ -380,7 +443,10 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 			// Check if the slice element implements the FormScanner interface
 			_, ok := reflect.New(fieldVal.Type().Elem()).Interface().(FormScanner)
 			if !ok {
-				return fmt.Errorf("unsupported slice element type: %s", fieldVal.Type().Elem().Kind())
+				return FormError{
+					Err:  fmt.Errorf("unsupported slice element type: %s", fieldVal.Type().Elem().Kind()),
+					Kind: UnsupportedType,
+				}
 			}
 
 			for i, v := range valueSlice {
@@ -407,7 +473,10 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 		// Check if the slice element implements the FormScanner interface
 		_, ok := reflect.New(elemType).Interface().(FormScanner)
 		if !ok {
-			return fmt.Errorf("unsupported slice element type: %s", elemType.Kind())
+			return FormError{
+				Err:  fmt.Errorf("unsupported slice element type: %s", elemType.Kind()),
+				Kind: UnsupportedType,
+			}
 		}
 
 		for i, v := range valueSlice {
@@ -446,7 +515,10 @@ func QueryParser(req *http.Request, v interface{}, tag ...string) error {
 	// Make sure v is a pointer to a struct
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("v must be a pointer to a struct")
+		return FormError{
+			Err:  fmt.Errorf("v must be a pointer to a struct"),
+			Kind: InvalidStructPointer,
+		}
 	}
 
 	data := req.URL.Query()
@@ -458,6 +530,5 @@ func QueryParser(req *http.Request, v interface{}, tag ...string) error {
 			dataMap[k] = v // array of values or empty array
 		}
 	}
-
 	return parseFormData(dataMap, v, tagName)
 }
