@@ -451,8 +451,6 @@ type minifiedFS struct {
 }
 
 func (mfs *minifiedFS) Open(name string) (http.File, error) {
-	fmt.Printf("Serving %s\n", name)
-
 	// Check if the requested file is a .js or .css file
 	if strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".css") {
 		// Check for the minified version of the file
