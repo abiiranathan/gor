@@ -344,6 +344,7 @@ func (r *Router) Connect(path string, handler http.HandlerFunc, middlewares ...M
 // Serve static assests at prefix in the directory dir.
 // e.g r.Static("/static", "static").
 // This method will strip the prefix from the URL path.
+// To serve minified assets(JS and CSS) if present, call gor.ServeMinifiedAssetsIfPresent=true.
 func (r *Router) Static(prefix, dir string) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
@@ -351,10 +352,34 @@ func (r *Router) Static(prefix, dir string) {
 
 	var h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
+
+		if ServeMinifiedAssetsIfPresent {
+			stat, err := os.Stat(path)
+			if err != nil || stat.IsDir() {
+				http.NotFound(w, req)
+				return
+			}
+
+			if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+				// Check for the minified version of the file
+				minifiedPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".min" + filepath.Ext(path)
+				if filePathExists(minifiedPath) {
+					http.ServeFile(w, req, minifiedPath)
+					return
+				}
+			}
+		}
+
 		http.ServeFile(w, req, path)
+
 	})
 
 	r.mux.Handle(prefix, r.chain(r.globalMiddlewares, h))
+}
+
+func filePathExists(name string) bool {
+	stat, err := os.Stat(name)
+	return err == nil && !stat.IsDir()
 }
 
 // Wrapper around http.ServeFile.
@@ -413,7 +438,6 @@ func (r *Router) FaviconFS(fs http.FileSystem, path string) {
 		w.Header().Set("Content-Type", "image/x-icon")
 		w.Header().Set("Cache-Control", "public, max-age=31536000")
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
-		// content disposition
 		w.Header().Set("Content-Disposition", "inline; filename=favicon.ico")
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
@@ -422,11 +446,46 @@ func (r *Router) FaviconFS(fs http.FileSystem, path string) {
 	r.Get("/favicon.ico", handler)
 }
 
+type minifiedFS struct {
+	http.FileSystem
+}
+
+func (mfs *minifiedFS) Open(name string) (http.File, error) {
+	fmt.Printf("Serving %s\n", name)
+
+	// Check if the requested file is a .js or .css file
+	if strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".css") {
+		// Check for the minified version of the file
+		minifiedName := strings.TrimSuffix(name, filepath.Ext(name)) + ".min" + filepath.Ext(name)
+
+		// Return minified file if available.
+		if f, err := mfs.FileSystem.Open(minifiedName); err == nil {
+			return f, nil
+		}
+	}
+
+	// If no minified version is found, serve the original file
+	return mfs.FileSystem.Open(name)
+}
+
+// Serve minified Javascript and CSS if present instead of original file.
+// This applies to StaticFS, Static functions.
+// e.g /static/js/main.js will serve /static/js/main.min.js if present.
+// Default is false.
+// This is important since we maintain the same script sources in our templates/html.
+var ServeMinifiedAssetsIfPresent = false
+
 // Like Static but for http.FileSystem.
 // Use this to serve embedded assets with go/embed.
+//
+//	mux.StaticFS("/static", http.FS(staticFs))
 func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
+	}
+
+	if ServeMinifiedAssetsIfPresent {
+		fs = &minifiedFS{fs}
 	}
 
 	// Create file server for the http.FileSystem

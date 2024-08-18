@@ -29,6 +29,8 @@ func main() {
 
 	// Create a new router
 	gor.NoTrailingSlash = true
+	gor.ServeMinifiedAssetsIfPresent = true
+
 	mux := gor.NewRouter(
 		gor.WithTemplates(t),
 		gor.PassContextToViews(true),
