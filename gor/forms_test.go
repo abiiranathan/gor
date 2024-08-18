@@ -367,7 +367,7 @@ func TestSetFieldMultipartFormRequired(t *testing.T) {
 			return
 		}
 
-		if !errors.Is(err, &FormError{}) {
+		if !errors.As(err, &FormError{}) {
 			t.Errorf("expected FormError, got %T", err)
 		}
 

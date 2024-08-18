@@ -38,9 +38,13 @@ var (
 	StrictHome = true
 
 	// Remove trailing slashes from the pattern (and req.URL.Path) except for the root path.
-	// This means that if you register "/test/" and a request is made to "/test" or "/test/", it will not match.
+	// This means that if you register "/test/" and a request is made to "/test" or "/test/",
+	// it will not match.
 	// The default is true.
 	NoTrailingSlash = true
+
+	// name of the template content block
+	contentBlock = "Content"
 )
 
 type contextType string
@@ -161,7 +165,7 @@ func NewRouter(options ...RouterOption) *Router {
 		routes:             make(map[string]*route),
 		passContextToViews: false,
 		baseLayout:         "",
-		contentBlock:       "Content",
+		contentBlock:       contentBlock,
 		viewsFs:            nil,
 		groups:             make(map[string]*Group),
 		globalMiddlewares:  []Middleware{},
@@ -250,12 +254,14 @@ func (r *Router) chain(middlewares []Middleware, handler http.Handler) http.Hand
 	return wrapped
 }
 
+// Set a value to the context.
 func (r *CTX) Set(key any, value any) {
 	r.localsMu.Lock()
 	defer r.localsMu.Unlock()
 	r.locals[key] = value
 }
 
+// Get a value from the context.
 func (r *CTX) Get(key any) any {
 	r.localsMu.RLock()
 	defer r.localsMu.RUnlock()
@@ -456,16 +462,23 @@ type SPAOptions struct {
 // The default entrypoint is "index.html" i.e buildPath/index.html.
 // You can change the entrypoint with options. Passed options override all defaults.
 func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, options ...SPAOptions) {
-	var indexFile = "index.html"
-	var cacheControl string
-	var skip []string
-	var resModifier http.HandlerFunc = nil
+	var (
+		indexFile    = "index.html"
+		cacheControl string
+		skip         []string
+		resModifier  http.HandlerFunc = nil
+	)
 
 	if len(options) > 0 {
-		cacheControl = options[0].CacheControl
-		skip = options[0].Skip
-		indexFile = options[0].Index
-		resModifier = options[0].ResponseModifier
+		option := options[0]
+
+		cacheControl = option.CacheControl
+		skip = option.Skip
+
+		if option.Index != "" {
+			indexFile = option.Index
+		}
+		resModifier = option.ResponseModifier
 	}
 
 	indexFp, err := frontendFS.Open(filepath.Join(buildPath, indexFile))
@@ -483,7 +496,7 @@ func (r *Router) SPAHandler(frontendFS fs.FS, path string, buildPath string, opt
 	handler := r.chain(r.globalMiddlewares, fsHandler)
 
 	r.mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
-		// check skip. Important for API routes
+		// check skip.
 		for _, s := range skip {
 			if s == req.URL.Path {
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

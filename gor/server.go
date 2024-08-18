@@ -3,7 +3,6 @@ package gor
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -58,7 +57,6 @@ func (s *Server) Shutdown(timeout ...time.Duration) {
 		panic(err)
 	}
 
-	log.Println("shutting down")
 }
 
 // define a few options to configure the server

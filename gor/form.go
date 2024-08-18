@@ -156,12 +156,11 @@ func BodyParser(req *http.Request, v interface{}) error {
 				data[k] = v // array of values
 			}
 		}
+
 		err = parseFormData(data, v)
 		if err != nil {
-			return FormError{
-				Err:  err,
-				Kind: ParseError,
-			}
+			// propagate the error
+			return err
 		}
 		return nil
 	} else if contentType == ContentTypeXML {

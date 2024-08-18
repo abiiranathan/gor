@@ -106,7 +106,7 @@ func main() {
 		gor.ContentBlock("Content"),
 	)
 
-	r.Get("/{$}", HomeHandler)
+	r.Get("/", HomeHandler)
 	r.Get("/about", AboutHandler)
 	r.Get("/api", ApiHandler)
 	r.Get("/doctor", NestedTemplate)

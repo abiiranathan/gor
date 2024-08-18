@@ -23,7 +23,7 @@ const (
 )
 
 // Set a value in the request context. Also saves a copy in locals map.
-// This allows for passing of passing of locals to templates.
+// This allows for passing of locals to templates.
 func SetContextValue(req *http.Request, key any, value interface{}) {
 	ctx := context.WithValue(req.Context(), key, value)
 	*req = *req.WithContext(ctx)
