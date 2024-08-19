@@ -263,21 +263,22 @@ func TestRouterMultipartFormData(t *testing.T) {
 func TestRouterMultipartFormDataWithFile(t *testing.T) {
 	r := gor.NewRouter()
 	r.Post("/upload", func(w http.ResponseWriter, req *http.Request) {
-		fileHeader, err := gor.FormFile(req, "file")
+		req.ParseMultipartForm(req.ContentLength)
+		_, fileHeader, err := req.FormFile("file")
 		if err != nil {
 			gor.SendString(w, err.Error())
 			return
 		}
 
-		data, err := fileHeader.Open()
+		mpf, err := fileHeader.Open()
 		if err != nil {
 			gor.SendString(w, err.Error())
 			return
 		}
-		defer data.Close()
+		defer mpf.Close()
 
 		buf := &bytes.Buffer{}
-		_, err = buf.ReadFrom(data)
+		_, err = buf.ReadFrom(mpf)
 		if err != nil {
 			gor.SendString(w, err.Error())
 			return

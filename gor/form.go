@@ -6,51 +6,12 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
-
-// Parses form data and returns it to caller.
-// Panics if req.ParseForm returns an error.
-func FormData(req *http.Request) url.Values {
-	err := req.ParseForm()
-	if err != nil {
-		panic(err)
-	}
-	return req.Form
-}
-
-// FormFile returns the first file from the multipart form with the given key.
-func FormFile(req *http.Request, key string) (*multipart.FileHeader, error) {
-	_, fh, err := req.FormFile(key)
-	return fh, err
-}
-
-// FormFiles returns the files from the multipart form with the given key.
-// You must call ParseMultipartForm first for req.MultipartForm to be populated.
-func FormFiles(req *http.Request, key string) ([]*multipart.FileHeader, error) {
-	// get the file from multipart form
-	fhs, ok := req.MultipartForm.File[key]
-	if !ok {
-		return nil, fmt.Errorf("file %s not found", key)
-	}
-	return fhs, nil
-}
-
-// ParseMultipartForm parses a request body as multipart form data.
-func ParseMultipartForm(req *http.Request, maxMemory ...int64) (*multipart.Form, error) {
-	var err error
-	if len(maxMemory) > 0 {
-		err = req.ParseMultipartForm(maxMemory[0])
-	} else {
-		err = req.ParseMultipartForm(req.ContentLength)
-	}
-	return req.MultipartForm, err
-}
 
 // FormError represents an error encountered during body parsing.
 type FormError struct {
@@ -116,13 +77,14 @@ func BodyParser(req *http.Request, v interface{}) error {
 		var form *multipart.Form
 		var err error
 		if contentType == ContentTypeMultipartForm {
-			form, err = ParseMultipartForm(req)
+			err = req.ParseMultipartForm(req.ContentLength)
 			if err != nil {
 				return FormError{
 					Err:  err,
 					Kind: ParseError,
 				}
 			}
+			form = req.MultipartForm
 		} else {
 			err = req.ParseForm()
 			if err != nil {

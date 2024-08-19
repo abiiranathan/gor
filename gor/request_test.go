@@ -301,7 +301,8 @@ func TestSaveFile(t *testing.T) {
 	// create a file header
 	r := NewRouter()
 	r.Post("/uploadfile", func(w http.ResponseWriter, r *http.Request) {
-		file, err := FormFile(r, "file")
+		r.ParseMultipartForm(r.ContentLength)
+		_, file, err := r.FormFile("file")
 		if err != nil {
 			t.Fatal(err)
 		}
