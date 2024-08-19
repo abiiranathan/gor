@@ -103,9 +103,12 @@ func TestRouterNotFound(t *testing.T) {
 	}
 }
 
+// Use a derived type. Form processing should still pass.
+type Age int
+
 type User struct {
 	Name string `form:"name"`
-	Age  int    `form:"age"`
+	Age  Age    `form:"age"`
 }
 
 // test sending and reading form data
@@ -141,6 +144,47 @@ func TestRouterUrlEncodedFormData(t *testing.T) {
 
 // test sending and reading json data
 func TestRouterJSONData(t *testing.T) {
+	r := gor.NewRouter()
+	r.Post("/json", func(w http.ResponseWriter, req *http.Request) {
+		u := User{}
+		err := gor.BodyParser(req, &u)
+		if err != nil {
+			gor.SendString(w, err.Error())
+			return
+		}
+		gor.SendJSON(w, u)
+	})
+
+	u := User{
+		Name: "Abiira Nathan",
+		Age:  23,
+	}
+
+	body, err := json.Marshal(u)
+	if err != nil {
+		t.Error(err)
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/json", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var u2 User
+	json.NewDecoder(w.Body).Decode(&u2)
+
+	if !reflect.DeepEqual(u, u2) {
+		t.Errorf("expected %v, got %v", u, u2)
+	}
+
+}
+
+func TestBodyParserDerivedTypes(t *testing.T) {
 	r := gor.NewRouter()
 	r.Post("/json", func(w http.ResponseWriter, req *http.Request) {
 		u := User{}
