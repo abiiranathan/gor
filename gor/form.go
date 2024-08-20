@@ -39,11 +39,19 @@ const (
 
 // Error implements the error interface.
 func (e FormError) Error() string {
+	if wrappedError, ok := e.Err.(FormError); ok {
+		return fmt.Sprintf("BodyParser error: kind=%s, err=%s", wrappedError.Kind, wrappedError.Err)
+	}
 	return fmt.Sprintf("BodyParser error: kind=%s, err=%s", e.Kind, e.Err)
 }
 
+var DefaultTimezone = time.UTC
+
 // BodyParser parses the request body and stores the result in v.
 // v must be a pointer to a struct.
+// If timezone is provided, all date and time fields in forms are parsed with the provided location info.
+// Otherwise gor.DefaultTimezone is used and defaults to UTC.
+//
 // Supported content types: application/json, application/x-www-form-urlencoded, multipart/form-data, application/xml
 // For more robust form decoding we recommend using
 // https://github.com/gorilla/schema package.
@@ -51,7 +59,7 @@ func (e FormError) Error() string {
 // Struct tags are used to specify the form field name.
 // If parsing forms, the default tag name is "form",
 // followed by the "json" tag name, and then snake case of the field name.
-func BodyParser(req *http.Request, v interface{}) error {
+func BodyParser(r *http.Request, v interface{}, loc ...*time.Location) error {
 	// Make sure v is a pointer to a struct
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
@@ -61,10 +69,14 @@ func BodyParser(req *http.Request, v interface{}) error {
 		}
 	}
 
-	contentType := GetContentType(req)
+	contentType := ContentType(r)
+	timezone := DefaultTimezone
+	if len(loc) > 0 && loc[0] != nil {
+		timezone = loc[0]
+	}
 
 	if contentType == ContentTypeJSON {
-		decoder := json.NewDecoder(req.Body)
+		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(v)
 		if err != nil {
 			return FormError{
@@ -77,16 +89,16 @@ func BodyParser(req *http.Request, v interface{}) error {
 		var form *multipart.Form
 		var err error
 		if contentType == ContentTypeMultipartForm {
-			err = req.ParseMultipartForm(req.ContentLength)
+			err = r.ParseMultipartForm(r.ContentLength)
 			if err != nil {
 				return FormError{
 					Err:  err,
 					Kind: ParseError,
 				}
 			}
-			form = req.MultipartForm
+			form = r.MultipartForm
 		} else {
-			err = req.ParseForm()
+			err = r.ParseForm()
 			if err != nil {
 				return FormError{
 					Err:  err,
@@ -94,7 +106,7 @@ func BodyParser(req *http.Request, v interface{}) error {
 				}
 			}
 			form = &multipart.Form{
-				Value: req.Form,
+				Value: r.Form,
 			}
 		}
 
@@ -119,14 +131,14 @@ func BodyParser(req *http.Request, v interface{}) error {
 			}
 		}
 
-		err = parseFormData(data, v)
+		err = parseFormData(data, v, timezone)
 		if err != nil {
 			// propagate the error
 			return err
 		}
 		return nil
 	} else if contentType == ContentTypeXML {
-		xmlDecoder := xml.NewDecoder(req.Body)
+		xmlDecoder := xml.NewDecoder(r.Body)
 		err := xmlDecoder.Decode(v)
 		if err != nil {
 			return FormError{
@@ -157,7 +169,7 @@ func SnakeCase(s string) string {
 // Parses the form data and stores the result in v.
 // Default tag name is "form". You can specify a different tag name using the tag argument.
 // Forexample "query" tag name will parse the form data using the "query" tag.
-func parseFormData(data map[string]interface{}, v interface{}, tag ...string) error {
+func parseFormData(data map[string]interface{}, v interface{}, timezone *time.Location, tag ...string) error {
 	var tagName string = "form"
 	if len(tag) > 0 {
 		tagName = tag[0]
@@ -199,7 +211,7 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 
 		// set the value
 		fieldVal := rv.Field(i)
-		if err := setField(fieldVal, value); err != nil {
+		if err := setField(fieldVal, value, timezone); err != nil {
 			return FormError{
 				Err:  err,
 				Kind: ParseError,
@@ -210,7 +222,12 @@ func parseFormData(data map[string]interface{}, v interface{}, tag ...string) er
 	return nil
 }
 
-func setField(fieldVal reflect.Value, value interface{}) error {
+func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Location) error {
+	tz := DefaultTimezone
+	if len(timezone) > 0 {
+		tz = timezone[0]
+	}
+
 	// Dereference pointer if the field is a pointer
 	if fieldVal.Kind() == reflect.Ptr {
 		// Create a new value of the underlying type
@@ -256,10 +273,10 @@ func setField(fieldVal reflect.Value, value interface{}) error {
 		fieldVal.SetBool(v)
 	case reflect.Slice:
 		// Handle slice types
-		return handleSlice(fieldVal, value)
+		return handleSlice(fieldVal, value, tz)
 	case reflect.Struct:
 		if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
-			t, err := time.Parse(time.RFC3339, value.(string))
+			t, err := ParseTime(value.(string), tz)
 			if err != nil {
 				return err
 			}
@@ -300,7 +317,7 @@ func setField(fieldVal reflect.Value, value interface{}) error {
 
 // Parses the form value and stores the result fieldVal.
 // value should be a slice of strings.
-func handleSlice(fieldVal reflect.Value, value any) error {
+func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) error {
 	var valueSlice []string
 	var ok bool
 	valueSlice, ok = value.([]string)
@@ -332,7 +349,7 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 		}
 		fieldVal = fieldVal.Elem()
 		if fieldVal.Kind() == reflect.Slice {
-			return handleSlice(fieldVal, valueSlice)
+			return handleSlice(fieldVal, valueSlice, timezone)
 		}
 	}
 
@@ -393,7 +410,7 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 		// could be time.Time
 		if fieldVal.Type().Elem() == reflect.TypeOf(time.Time{}) {
 			for i, v := range valueSlice {
-				t, err := time.Parse(time.RFC3339, v)
+				t, err := ParseTime(v, timezone)
 				if err != nil {
 					return err
 				}
@@ -415,7 +432,7 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 				elem := reflect.New(fieldVal.Type().Elem()).Elem()
 
 				// Scan the form value into the slice element
-				if err := setField(elem, v); err != nil {
+				if err := setField(elem, v, timezone); err != nil {
 					return err
 				}
 
@@ -445,7 +462,7 @@ func handleSlice(fieldVal reflect.Value, value any) error {
 			elem := reflect.New(elemType).Elem()
 
 			// Scan the form value into the slice element
-			if err := setField(elem, v); err != nil {
+			if err := setField(elem, v, timezone); err != nil {
 				return err
 			}
 
@@ -491,5 +508,76 @@ func QueryParser(req *http.Request, v interface{}, tag ...string) error {
 			dataMap[k] = v // array of values or empty array
 		}
 	}
-	return parseFormData(dataMap, v, tagName)
+	return parseFormData(dataMap, v, time.UTC, tagName)
+}
+
+// Parse time from string using specified timezone. If timezone is nil,
+// UTC is used. Supported time formats are tried in order.
+/*
+	timeFormats := []string{
+		time.RFC3339,                    // "2006-01-02T15:04:05Z07:00" (default go time)
+		"2006-01-02T15:04:05.000Z07:00", // RFC 3339 format with milliseconds and a UTC timezone offset(JSON)
+		"2006-01-02T15:04",              // HTML datetime-local format without seconds
+		"2006-01-02T15:04:05",           // "2006-01-02T15:04:05"
+		time.DateTime,                   // Custom format for "YYYY-MM-DD HH:MM:SS"
+		time.DateOnly,                   // "2006-01-02" (html date format)
+		time.TimeOnly,                   // "HH:MM:SS" (html time format)
+	}
+*/
+func ParseTime(v string, timezone *time.Location) (time.Time, error) {
+	// Define a list of time formats to try
+	timeFormats := []string{
+		time.RFC3339,                    // "2006-01-02T15:04:05Z07:00" (default go time)
+		"2006-01-02T15:04:05.000Z07:00", // RFC 3339 format with milliseconds and a UTC timezone offset(JSON)
+		"2006-01-02T15:04",              // HTML datetime-local format without seconds
+		"2006-01-02T15:04:05",           // "2006-01-02T15:04:05"
+		time.DateTime,                   // Custom format for "YYYY-MM-DD HH:MM:SS"
+		time.DateOnly,                   // "2006-01-02" (html date format)
+		time.TimeOnly,                   // "HH:MM:SS" (html time format)
+	}
+
+	loc := DefaultTimezone
+	if timezone != nil {
+		loc = timezone
+	}
+
+	var parsedTime time.Time
+	var err error
+
+	// Try parsing the time with each format
+	for _, format := range timeFormats {
+		parsedTime, err = time.ParseInLocation(format, v, loc)
+		if err == nil {
+			break // Stop if we successfully parsed the time
+		}
+	}
+
+	if err != nil { // If no format matched
+		return time.Time{}, err
+	}
+	return parsedTime, nil
+}
+
+func ParseTimeFormat(value string, format string, timezone ...string) (time.Time, error) {
+	tz := "UTC"
+	if len(timezone) > 0 {
+		tz = timezone[0]
+	}
+
+	loc := time.UTC
+	var parsedTime time.Time
+	var err error
+
+	if tz != "" {
+		loc, err = time.LoadLocation(tz)
+		if err != nil {
+			return time.Time{}, err
+		}
+	}
+
+	parsedTime, err = time.ParseInLocation(format, value, loc)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsedTime, nil
 }

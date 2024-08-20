@@ -209,9 +209,9 @@ func TestGetContentType(t *testing.T) {
 			req := httptest.NewRequest("GET", "/getcontent", nil)
 			req.Header.Set("Content-Type", tc.contentType)
 
-			actual := GetContentType(req)
+			actual := ContentType(req)
 			if actual != tc.expected {
-				t.Errorf("GetContentType() failed, expected %q, got %q", tc.expected, actual)
+				t.Errorf("ContentType() failed, expected %q, got %q", tc.expected, actual)
 			}
 		})
 	}

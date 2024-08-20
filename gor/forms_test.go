@@ -130,7 +130,7 @@ func TestHandleSlice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := handleSlice(tt.fieldvalue, tt.value); err != nil {
+			if err := handleSlice(tt.fieldvalue, tt.value, time.UTC); err != nil {
 				t.Errorf("handleSlice() error = %v", err)
 				return
 			}
@@ -522,5 +522,153 @@ func TestQueryParserSlice(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("QueryParser() status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		timezone    string
+		expected    time.Time
+		shouldError bool
+	}{
+		{
+			name:     "RFC3339",
+			input:    "2024-08-20T10:11:09Z",
+			timezone: "UTC",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 0, time.UTC),
+		},
+		{
+			name:     "RFC3339 with milliseconds",
+			input:    "2024-08-20T10:11:09.851Z",
+			timezone: "UTC",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 851000000, time.UTC),
+		},
+		{
+			name:     "HTML datetime-local without seconds",
+			input:    "2024-08-20T10:11",
+			timezone: "America/New_York",
+			expected: time.Date(2024, 8, 20, 10, 11, 0, 0, time.FixedZone("EDT", -4*60*60)),
+		},
+		{
+			name:     "Full date and time",
+			input:    "2024-08-20T10:11:09",
+			timezone: "America/New_York",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 0, time.FixedZone("EDT", -4*60*60)),
+		},
+		{
+			name:     "Custom format with space",
+			input:    "2024-08-20 10:11:09",
+			timezone: "America/New_York",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 0, time.FixedZone("EDT", -4*60*60)),
+		},
+		{
+			name:     "Date only",
+			input:    "2024-08-20",
+			timezone: "America/New_York",
+			expected: time.Date(2024, 8, 20, 0, 0, 0, 0, time.FixedZone("EDT", -4*60*60)),
+		},
+		{
+			name:     "Time only",
+			input:    "10:11:09",
+			timezone: "Africa/Kampala",
+			expected: time.Date(0, 1, 1, 10, 11, 9, 0, time.FixedZone("LMT", 2*3600+27*60)),
+		},
+		{
+			name:        "Invalid format",
+			input:       "Invalid format",
+			timezone:    "UTC",
+			shouldError: true,
+		},
+		{
+			name:     "With TIMEZONE set",
+			input:    "2024-08-20T10:11:09",
+			timezone: "America/New_York",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 0, time.FixedZone("EDT", -4*60*60)),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			loc, err := time.LoadLocation(tc.timezone)
+			if err != nil {
+				t.Errorf("unable to load timezone: %s\n", tc.timezone)
+				return
+			}
+
+			result, err := ParseTime(tc.input, loc)
+			if tc.shouldError {
+				if err == nil {
+					t.Errorf("expected error, got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+
+				if tc.name == "Time only" {
+					// Time only is wierd. Always seems to be represented as LMT.
+					// When compared with .Equal it fails!!
+					// I don't know if this is not a bug in go
+					if result.String() != tc.expected.String() {
+						t.Errorf("expected %v, got %v", tc.expected, result)
+					}
+				} else {
+					if !result.Equal(tc.expected) {
+						t.Errorf("expected %v, got %v", tc.expected, result)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestParseTimeFormat(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		format      string
+		timezone    string
+		expected    time.Time
+		shouldError bool
+	}{
+		{
+			name:     "RFC3339",
+			input:    "2024-08-20T10:11:09Z",
+			format:   time.RFC3339,
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 0, time.UTC),
+		},
+		{
+			name:     "Custom format with milliseconds",
+			input:    "2024-08-20T10:11:09.851",
+			format:   "2006-01-02T15:04:05.000",
+			expected: time.Date(2024, 8, 20, 10, 11, 9, 851000000, time.UTC),
+		},
+		{
+			name:        "Invalid format",
+			input:       "Invalid format",
+			format:      "2006-01-02T15:04:05",
+			timezone:    "UTC",
+			shouldError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseTimeFormat(tc.input, tc.format, tc.timezone)
+			if tc.shouldError {
+				if err == nil {
+					t.Errorf("expected error, got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if !result.Equal(tc.expected) {
+					t.Errorf("expected %v, got %v", tc.expected, result)
+				}
+			}
+		})
 	}
 }

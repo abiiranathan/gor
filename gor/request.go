@@ -104,12 +104,10 @@ func SendJSONError(w http.ResponseWriter, resp map[string]any, status ...int) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Returns the header content type.
-func GetContentType(req *http.Request) string {
-	// content-type may contain additional information like charset
-	ct := req.Header.Get("Content-Type")
-	parts := strings.Split(ct, ";")
-	return parts[0]
+// Returns the header content type stripping everything after ; like
+// charset or form boundary in multipart/form-data forms.
+func ContentType(req *http.Request) string {
+	return strings.Split(req.Header.Get("Content-Type"), ";")[0]
 }
 
 // Redirects the request to the given url.

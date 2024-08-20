@@ -137,7 +137,7 @@ No external libraries are included in the main package. Only a few external libr
 - `func SendFile(w http.ResponseWriter, req *http.Request, file string)`
 - `func SendError(w http.ResponseWriter, err error, status int)`
 - `func SendJSONError(w http.ResponseWriter, key, s string, status int)`
-- `func GetContentType(req *http.Request) string`
+- `func ContentType(req *http.Request) string`
 - `func Redirect(req *http.Request, w http.ResponseWriter, url string, status ...int)`
 - `func Query(req *http.Request, key string, defaults ...string) string`
 - `func QueryInt(req *http.Request, key string, defaults ...int) int`

@@ -696,8 +696,8 @@ func (r *Router) Render(w io.Writer, req *http.Request, name string, data Map) {
 			log.Println(err)
 			if writer, ok := w.(http.ResponseWriter); ok {
 				writer.Header().Set("Content-Type", ContentTypeHTML)
-				writer.Write([]byte(err.Error()))
 				writer.WriteHeader(http.StatusInternalServerError)
+				writer.Write([]byte(err.Error()))
 			}
 		}
 	}
