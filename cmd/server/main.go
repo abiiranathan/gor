@@ -24,7 +24,7 @@ func HomeHandler(w http.ResponseWriter, req *http.Request) {
 
 	// Router is accessed in context and used for rending. Same as r.Render()
 	// but this way you don't need r in scope.
-	gor.Render(w, req, "home.html", data)
+	gor.Render(w, req, "templates/home.html", data)
 }
 
 func AboutHandler(w http.ResponseWriter, req *http.Request) {
@@ -32,11 +32,11 @@ func AboutHandler(w http.ResponseWriter, req *http.Request) {
 		"Title": "About Page",
 		"Body":  "Welcome to the about page",
 	}
-	gor.Render(w, req, "about.html", data)
+	gor.Render(w, req, "templates/about.html", data)
 }
 
 func NestedTemplate(w http.ResponseWriter, req *http.Request) {
-	gor.Render(w, req, "doctor/doctor.html", gor.Map{})
+	gor.Render(w, req, "templates/doctor/doctor.html", gor.Map{})
 }
 
 func ApiHandler(w http.ResponseWriter, req *http.Request) {
@@ -90,7 +90,7 @@ func SessionMiddleware(next http.Handler) http.Handler {
 }
 
 func loginGetHandler(w http.ResponseWriter, req *http.Request) {
-	gor.Render(w, req, "login.html", gor.Map{})
+	gor.Render(w, req, "templates/login.html", gor.Map{})
 }
 
 func main() {
@@ -102,7 +102,7 @@ func main() {
 	r := gor.NewRouter(
 		gor.WithTemplates(templ),
 		gor.PassContextToViews(true),
-		gor.BaseLayout("base.html"),
+		gor.BaseLayout("templates/base.html"),
 		gor.ContentBlock("Content"),
 	)
 

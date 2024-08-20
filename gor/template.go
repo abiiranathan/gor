@@ -162,7 +162,7 @@ func ParseTemplatesRecursiveFS(root fs.FS, rootDir string, funcMap template.Func
 				return err
 			}
 
-			t := tmpl.New(path[pfx:]).Funcs(funcMap)
+			t := tmpl.New(rootDir + "/" + path[pfx:]).Funcs(funcMap)
 			_, err = t.Parse(string(b))
 
 			return err

@@ -740,29 +740,23 @@ func (r *Router) ExecuteTemplate(w io.Writer, name string, data Map) error {
 	if r.template == nil {
 		panic("No template is configured")
 	}
-
-	// append the file extension if missing
-	if filepath.Ext(name) == "" {
-		name = name + ".html"
-	}
 	return r.template.ExecuteTemplate(w, name, data)
 }
 
-// Execute a standalone template without a layout.
+// ExecuteTemplate executes a standalone template without a layout.
+// It is an alias for gor.Router.ExecuteTemplate.
+//
 // To execute a named template-without inserting base layout, first call
 // LookupTemplate and then execute it yourself using standard html/template
-// semantics. If the extension is missing in name, .html is assumed.
+// semantics. No file extension is assumed so name should include it.
+//
+// This allows it to execute name "block" templates as well that do not have
+// a file extension.
 func ExecuteTemplate(w io.Writer, req *http.Request, name string, data Map) error {
 	ctx, ok := req.Context().Value(contextKey).(*CTX)
 	if !ok {
 		panic("You are not using gor.Router. You cannot use this function")
 	}
-
-	// append the file extension if missing
-	if filepath.Ext(name) == "" {
-		name = name + ".html"
-	}
-
 	return ctx.Router.ExecuteTemplate(w, name, data)
 }
 

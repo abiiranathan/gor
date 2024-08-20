@@ -72,7 +72,7 @@ func main() {
 	})
 
 	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		gor.Render(w, r, "index.html", gor.Map{})
+		gor.Render(w, r, "static/index.html", gor.Map{})
 	})
 
 	mux.Post("/login", func(w http.ResponseWriter, r *http.Request) {
