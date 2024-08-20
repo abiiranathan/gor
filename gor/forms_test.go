@@ -94,7 +94,7 @@ func TestSetField(t *testing.T) {
 				}
 			}
 
-			if err := setField(fieldValue, tt.value); err != nil {
+			if err := setField(tt.name, fieldValue, tt.value); err != nil {
 				t.Errorf("setField() error = %v", err)
 				return
 			}
@@ -130,7 +130,7 @@ func TestHandleSlice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := handleSlice(tt.fieldvalue, tt.value, time.UTC); err != nil {
+			if err := handleSlice(tt.name, tt.fieldvalue, tt.value, time.UTC); err != nil {
 				t.Errorf("handleSlice() error = %v", err)
 				return
 			}
@@ -146,7 +146,7 @@ func TestHandleSlice(t *testing.T) {
 func TestSetFieldCustomInt(t *testing.T) {
 	fieldValue := reflect.ValueOf(new(customInt)).Elem()
 
-	if err := setField(fieldValue, "123"); err != nil {
+	if err := setField("int", fieldValue, "123"); err != nil {
 		t.Errorf("setField() error = %v", err)
 		return
 	}
@@ -203,7 +203,7 @@ func TestSetFieldsPointer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := setField(reflect.ValueOf(tt.fieldPtr).Elem(), tt.value); err != nil {
+			if err := setField(tt.name, reflect.ValueOf(tt.fieldPtr).Elem(), tt.value); err != nil {
 				t.Errorf("setField() error = %v", err)
 				return
 			}

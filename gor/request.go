@@ -3,6 +3,7 @@ package gor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -77,6 +78,17 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 		statusCode = status[0]
 	}
 
+	fmt.Printf("[GOR ERROR]: %v\n", err)
+
+	// In case its htmx, return the error as is
+	isHtmx := req.Header.Get("HX-Request") == "true"
+	if isHtmx {
+		w.Header().Set("Content-Type", ContentTypeHTML)
+		w.WriteHeader(statusCode)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
 	// We are using go router.
 	if writer, ok := w.(*ResponseWriter); ok {
 		// get the CTX from the request
@@ -90,6 +102,7 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 	w.Header().Set("Content-Type", ContentTypeHTML)
 	w.WriteHeader(statusCode)
 	w.Write([]byte(err.Error()))
+
 }
 
 // sends the error message as a JSON string with the status code

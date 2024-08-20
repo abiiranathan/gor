@@ -19,6 +19,9 @@ type FormError struct {
 	Err error
 	// The kind of error encountered.
 	Kind FormErrorKind
+
+	// Struct field name causing error.
+	Field string
 }
 
 // FormErrorKind represents the kind of error encountered during body parsing.
@@ -40,9 +43,9 @@ const (
 // Error implements the error interface.
 func (e FormError) Error() string {
 	if wrappedError, ok := e.Err.(FormError); ok {
-		return fmt.Sprintf("BodyParser error: kind=%s, err=%s", wrappedError.Kind, wrappedError.Err)
+		return fmt.Sprintf("BodyParser error: field=%q kind=%s, err=%s", wrappedError.Field, wrappedError.Kind, wrappedError.Err)
 	}
-	return fmt.Sprintf("BodyParser error: kind=%s, err=%s", e.Kind, e.Err)
+	return fmt.Sprintf("BodyParser error: field=%q kind=%s, err=%s", e.Field, e.Kind, e.Err)
 }
 
 var DefaultTimezone = time.UTC
@@ -64,8 +67,9 @@ func BodyParser(r *http.Request, v interface{}, loc ...*time.Location) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return FormError{
-			Err:  fmt.Errorf("v must be a pointer to a struct"),
-			Kind: InvalidStructPointer,
+			Err:   fmt.Errorf("v must be a pointer to a struct"),
+			Kind:  InvalidStructPointer,
+			Field: "",
 		}
 	}
 
@@ -202,8 +206,9 @@ func parseFormData(data map[string]interface{}, v interface{}, timezone *time.Lo
 		if !ok {
 			if required {
 				return FormError{
-					Err:  fmt.Errorf("required field %s not found", tag),
-					Kind: RequiredFieldMissing,
+					Err:   fmt.Errorf("field '%s' is required", tag),
+					Kind:  RequiredFieldMissing,
+					Field: field.Name,
 				}
 			}
 			continue
@@ -211,18 +216,18 @@ func parseFormData(data map[string]interface{}, v interface{}, timezone *time.Lo
 
 		// set the value
 		fieldVal := rv.Field(i)
-		if err := setField(fieldVal, value, timezone); err != nil {
+		if err := setField(field.Name, fieldVal, value, timezone); err != nil {
 			return FormError{
-				Err:  err,
-				Kind: ParseError,
+				Err:   err,
+				Kind:  ParseError,
+				Field: field.Name,
 			}
 		}
 	}
-
 	return nil
 }
 
-func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Location) error {
+func setField(name string, fieldVal reflect.Value, value interface{}, timezone ...*time.Location) error {
 	tz := DefaultTimezone
 	if len(timezone) > 0 {
 		tz = timezone[0]
@@ -273,7 +278,7 @@ func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Locat
 		fieldVal.SetBool(v)
 	case reflect.Slice:
 		// Handle slice types
-		return handleSlice(fieldVal, value, tz)
+		return handleSlice(name, fieldVal, value, tz)
 	case reflect.Struct:
 		if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
 			t, err := ParseTime(value.(string), tz)
@@ -287,8 +292,9 @@ func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Locat
 				return scanner.FormScan(value)
 			}
 			return FormError{
-				Err:  fmt.Errorf("unsupported type: %s, a custom struct must implement gor.FormScanner interface", fieldVal.Kind()),
-				Kind: UnsupportedType,
+				Err:   fmt.Errorf("unsupported type: %v: %v, a custom struct must implement gor.FormScanner interface", fieldVal.Kind(), value),
+				Kind:  UnsupportedType,
+				Field: name,
 			}
 		}
 	default:
@@ -306,8 +312,9 @@ func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Locat
 			}
 		} else {
 			return FormError{
-				Err:  fmt.Errorf("unsupported type: %s, a custom struct must implement gor.FormScanner interface", fieldVal.Kind()),
-				Kind: UnsupportedType,
+				Err:   fmt.Errorf("unsupported type: %s, a custom struct must implement gor.FormScanner interface", fieldVal.Kind()),
+				Kind:  UnsupportedType,
+				Field: name,
 			}
 		}
 	}
@@ -317,7 +324,7 @@ func setField(fieldVal reflect.Value, value interface{}, timezone ...*time.Locat
 
 // Parses the form value and stores the result fieldVal.
 // value should be a slice of strings.
-func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) error {
+func handleSlice(name string, fieldVal reflect.Value, value any, timezone *time.Location) error {
 	var valueSlice []string
 	var ok bool
 	valueSlice, ok = value.([]string)
@@ -330,8 +337,9 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 			}
 		} else {
 			return FormError{
-				Err:  fmt.Errorf("unsupported slice type: %T with value: %v", value, value),
-				Kind: UnsupportedType,
+				Err:   fmt.Errorf("unsupported slice type: %T with value: %v", value, value),
+				Kind:  UnsupportedType,
+				Field: name,
 			}
 		}
 	}
@@ -349,7 +357,7 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 		}
 		fieldVal = fieldVal.Elem()
 		if fieldVal.Kind() == reflect.Slice {
-			return handleSlice(fieldVal, valueSlice, timezone)
+			return handleSlice(name, fieldVal, valueSlice, timezone)
 		}
 	}
 
@@ -422,8 +430,9 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 			_, ok := reflect.New(fieldVal.Type().Elem()).Interface().(FormScanner)
 			if !ok {
 				return FormError{
-					Err:  fmt.Errorf("unsupported slice element type: %s", fieldVal.Type().Elem().Kind()),
-					Kind: UnsupportedType,
+					Err:   fmt.Errorf("unsupported slice element type: %s", fieldVal.Type().Elem().Kind()),
+					Kind:  UnsupportedType,
+					Field: name,
 				}
 			}
 
@@ -432,7 +441,7 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 				elem := reflect.New(fieldVal.Type().Elem()).Elem()
 
 				// Scan the form value into the slice element
-				if err := setField(elem, v, timezone); err != nil {
+				if err := setField(name, elem, v, timezone); err != nil {
 					return err
 				}
 
@@ -452,8 +461,9 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 		_, ok := reflect.New(elemType).Interface().(FormScanner)
 		if !ok {
 			return FormError{
-				Err:  fmt.Errorf("unsupported slice element type: %s", elemType.Kind()),
-				Kind: UnsupportedType,
+				Err:   fmt.Errorf("unsupported slice element type: %s", elemType.Kind()),
+				Kind:  UnsupportedType,
+				Field: name,
 			}
 		}
 
@@ -462,7 +472,7 @@ func handleSlice(fieldVal reflect.Value, value any, timezone *time.Location) err
 			elem := reflect.New(elemType).Elem()
 
 			// Scan the form value into the slice element
-			if err := setField(elem, v, timezone); err != nil {
+			if err := setField(name, elem, v, timezone); err != nil {
 				return err
 			}
 
