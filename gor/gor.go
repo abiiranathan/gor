@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -345,13 +346,26 @@ func (r *Router) Connect(path string, handler http.HandlerFunc, middlewares ...M
 // e.g r.Static("/static", "static").
 // This method will strip the prefix from the URL path.
 // To serve minified assets(JS and CSS) if present, call gor.ServeMinifiedAssetsIfPresent=true.
-func (r *Router) Static(prefix, dir string) {
+// To enable caching, provide maxAge seconds for cache duration.
+func (r *Router) Static(prefix, dir string, maxAge ...int) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
 
+	cacheDuration := 0
+	if len(maxAge) > 0 {
+		cacheDuration = maxAge[0]
+	}
+
 	var h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := filepath.Join(dir, strings.TrimPrefix(req.URL.Path, prefix))
+
+		setCacheHeaders := func() {
+			if cacheDuration > 0 {
+				// Set cache control headers with the specified maxAge
+				w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(cacheDuration))
+			}
+		}
 
 		if ServeMinifiedAssetsIfPresent {
 			stat, err := os.Stat(path)
@@ -365,10 +379,13 @@ func (r *Router) Static(prefix, dir string) {
 				minifiedPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".min" + filepath.Ext(path)
 				if filePathExists(minifiedPath) {
 					http.ServeFile(w, req, minifiedPath)
+					setCacheHeaders()
 					return
 				}
 			}
 		}
+
+		setCacheHeaders()
 
 		http.ServeFile(w, req, path)
 
@@ -477,7 +494,9 @@ var ServeMinifiedAssetsIfPresent = false
 // Use this to serve embedded assets with go/embed.
 //
 //	mux.StaticFS("/static", http.FS(staticFs))
-func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
+//
+// To enable caching, provide maxAge seconds for cache duration.
+func (r *Router) StaticFS(prefix string, fs http.FileSystem, maxAge ...int) {
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
@@ -486,8 +505,19 @@ func (r *Router) StaticFS(prefix string, fs http.FileSystem) {
 		fs = &minifiedFS{fs}
 	}
 
+	cacheDuration := 0
+	if len(maxAge) > 0 {
+		cacheDuration = maxAge[0]
+	}
+
 	// Create file server for the http.FileSystem
-	handler := http.FileServer(fs)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cacheDuration > 0 {
+			// Set cache control headers with the specified maxAge
+			w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(cacheDuration))
+		}
+		http.FileServer(fs).ServeHTTP(w, r)
+	})
 
 	// Apply global middleware
 	finalHandler := r.chain(r.globalMiddlewares, handler)
