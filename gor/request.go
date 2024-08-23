@@ -90,11 +90,10 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 	}
 
 	// We are using go router.
-	if writer, ok := w.(*ResponseWriter); ok {
+	if ctx, ok := req.Context().Value(contextKey).(*CTX); ok {
 		// get the CTX from the request
-		ctx := req.Context().Value(contextKey).(*CTX)
 		if ctx.Router.errorTemplate != "" {
-			ctx.Router.renderErrorTemplate(writer, err, statusCode)
+			ctx.Router.renderErrorTemplate(w, err, statusCode)
 			return
 		}
 	}

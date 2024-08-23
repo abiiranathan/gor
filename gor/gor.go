@@ -110,6 +110,8 @@ type ResponseWriter struct {
 	http.ResponseWriter     // The embedded response writer.
 	status              int // response status code
 
+	size int
+
 	// track if status already sent
 	statusSent bool
 }
@@ -122,6 +124,17 @@ func (w *ResponseWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
 	w.statusSent = true
+}
+
+func (rw *ResponseWriter) Write(b []byte) (int, error) {
+	if !rw.statusSent {
+		// The status will be StatusOK if WriteHeader has not been called yet
+		rw.WriteHeader(http.StatusOK)
+	}
+
+	size, err := rw.ResponseWriter.Write(b)
+	rw.size += size
+	return size, err
 }
 
 // Status returns the response status code.
@@ -152,6 +165,25 @@ func (w *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return h.Hijack()
 	}
 	return nil, nil, fmt.Errorf("http.Hijacker is not implemented")
+}
+
+// ReadFrom exposes underlying http.ResponseWriter to io.Copy and if it implements
+// io.ReaderFrom, it can take advantage of optimizations such as sendfile, io.Copy
+// with sync.Pool's buffer which is in http.(*response).ReadFrom and so on.
+func (rw *ResponseWriter) ReadFrom(r io.Reader) (n int64, err error) {
+	if !rw.statusSent {
+		// The status will be StatusOK if WriteHeader has not been called yet
+		rw.WriteHeader(http.StatusOK)
+	}
+
+	n, err = io.Copy(rw.ResponseWriter, r)
+	rw.size += int(n)
+	return
+}
+
+// Satisfy http.ResponseController support (Go 1.20+)
+func (rw *ResponseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
 }
 
 // Router option a function option for configuring the router.
@@ -811,6 +843,30 @@ func LookupTemplate(req *http.Request, name string) (*template.Template, error) 
 
 func (r *Router) Redirect(w http.ResponseWriter, req *http.Request, url string, status ...int) {
 	Redirect(w, req, url, status...)
+}
+
+func (r *Router) SendError(w http.ResponseWriter, req *http.Request, err error, status ...int) {
+	SendError(w, req, err, status...)
+}
+
+func (r *Router) SendString(w http.ResponseWriter, s string) error {
+	return SendString(w, s)
+}
+
+func (r *Router) SendJSON(w http.ResponseWriter, v interface{}) error {
+	return SendJSON(w, v)
+}
+
+func (r *Router) SendHTML(w http.ResponseWriter, html string) error {
+	return SendHTML(w, html)
+}
+
+func (r *Router) SetContextValue(req *http.Request, key any, value interface{}) {
+	SetContextValue(req, key, value)
+}
+
+func (r *Router) GetContextValue(req *http.Request, key any) interface{} {
+	return GetContextValue(req, key)
 }
 
 func (r *Router) RedirectRoute(w http.ResponseWriter, req *http.Request, pathname string, status ...int) {
