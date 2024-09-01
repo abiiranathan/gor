@@ -822,6 +822,23 @@ func ExecuteTemplate(w io.Writer, req *http.Request, name string, data Map) erro
 	return ctx.Router.ExecuteTemplate(w, name, data)
 }
 
+// Execute executes a standalone template without a layout but accepts any interface
+// instead of a Map(unlike ExecuteTemplate).
+//
+// If data is a Map, its the same as ExecuteTemplate, otherwise; no context will be parsed to views.
+// Use this function if your template expects a plain struct as the root context.
+func Execute(w io.Writer, req *http.Request, name string, data any) error {
+	if m, ok := data.(Map); ok {
+		return ExecuteTemplate(w, req, name, m)
+	}
+
+	ctx, ok := req.Context().Value(contextKey).(*CTX)
+	if !ok {
+		panic("You are not using gor.Router. You cannot use this function")
+	}
+	return ctx.Router.template.Execute(w, data)
+}
+
 // Execute a standalone template without a layout.
 // If the extension is missing in name, .html is assumed.
 func LookupTemplate(req *http.Request, name string) (*template.Template, error) {

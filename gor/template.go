@@ -1,12 +1,15 @@
 package gor
 
 import (
+	"fmt"
 	"html/template"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+var componentName string = "gor_components"
 
 // BaseLayout sets the base layout template for the router.
 // If set, this template will be used as the base layout for all views.
@@ -74,6 +77,39 @@ func WithTemplates(t *template.Template) RouterOption {
 	}
 }
 
+func isTrue(value any) bool {
+	switch v := value.(type) {
+	case string:
+		return v == "true" || v == "on"
+	case bool:
+		return v
+	default:
+		return false
+	}
+}
+
+/*
+Parse pre-build html form components generated with {{ block "tag" .}} attributes.
+
+Used as "{{ template "input" Props "id" "username" "label" "Enter username" "placeholder" "Username..." "required" "true"}}".
+Available components are:
+
+input: props(id, name, value, label, required, disabled, readonly, placeholder).
+
+select: Like input, also has "options" []string prop.
+
+textarea: Like input.
+
+checkbox: Like input, also has "checked" prop(A bool or string("true"/"on" are true otherwise false))
+
+radio: Same as checkbox. also has "options" []string prop
+
+button: Props(ID, Type, Disabled)
+*/
+func parseComponents(funcMap template.FuncMap) *template.Template {
+	return template.Must(template.New(componentName).Funcs(funcMap).Parse(components))
+}
+
 // ParseTemplatesRecursive parses all templates in a directory recursively.
 // It uses the specified `funcMap` to define custom template functions.
 // The `suffix` argument can be used to specify a different file extension for the templates.
@@ -96,9 +132,21 @@ func ParseTemplatesRecursive(rootDir string, funcMap template.FuncMap, suffix ..
 		ext = suffix[0]
 	}
 
+	funcMap["Props"] = Props
+	funcMap["IsTrue"] = isTrue
+	components := parseComponents(funcMap)
+
 	cleanRoot := filepath.Clean(rootDir)
 	pfx := len(cleanRoot) + 1
-	root := template.New("")
+	root := template.New("") // Create a new template
+
+	for _, partial := range components.Templates() {
+		var err error
+		root, err = root.Funcs(funcMap).AddParseTree(partial.Name(), partial.Tree)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	err := filepath.WalkDir(cleanRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -144,8 +192,20 @@ func ParseTemplatesRecursiveFS(root fs.FS, rootDir string, funcMap template.Func
 		ext = suffix[0]
 	}
 
+	funcMap["Props"] = Props
+	funcMap["IsTrue"] = isTrue
+	components := parseComponents(funcMap)
+
 	pfx := len(rootDir) + 1  // +1 for the trailing slash
 	tmpl := template.New("") // Create a new template
+
+	for _, partial := range components.Templates() {
+		var err error
+		tmpl, err = tmpl.Funcs(funcMap).AddParseTree(partial.Name(), partial.Tree)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	err := fs.WalkDir(root, rootDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -170,4 +230,19 @@ func ParseTemplatesRecursiveFS(root fs.FS, rootDir string, funcMap template.Func
 		return nil
 	})
 	return tmpl, err
+}
+
+func Props(props ...interface{}) (map[string]interface{}, error) {
+	if len(props)%2 != 0 {
+		return nil, fmt.Errorf("invalid props: odd number of arguments")
+	}
+	result := make(map[string]interface{}, len(props)/2)
+	for i := 0; i < len(props); i += 2 {
+		key, ok := props[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("prop key must be a string")
+		}
+		result[key] = props[i+1]
+	}
+	return result, nil
 }

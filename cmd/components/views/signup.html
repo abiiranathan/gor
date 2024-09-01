@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body >
+    <div class="max-w-4xl mx-auto p-8">
+    <h2 class="text-3xl mb-4 font-bold">Register account</h2>
+    <form action="/register" method="post">
+      {{ template "input" Props "label" "Username" "name" "username" "placeholder" "Enter your username" "required" true }}
+      {{ template "input" Props "label" "Email" "type" "email" "name" "email" "placeholder" "Enter your email" "required" true }}
+      {{ template "input" Props "label" "Age" "type" "number" "name" "age" "min" "10" "max" "60" }}
+      {{ template "select" Props "label" "Role" "name" "role"  "required" "true" "options" .Roles "value" (index .Roles 1) }}
+      
+      <sction class="flex items-center gap-4">
+        {{ template "button" Props "text" "REGISTER" "variant" "primary" }}
+      </sction>
+    </form>    
+    </div>
+</body>
+</html>
+

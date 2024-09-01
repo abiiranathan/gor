@@ -935,6 +935,44 @@ func TestRouterExecuteTemplate(t *testing.T) {
 
 }
 
+func TestRouterExecute(t *testing.T) {
+	templ, err := gor.ParseTemplatesRecursive("../cmd/server/templates",
+		template.FuncMap{"upper": strings.ToUpper}, ".html")
+
+	if err != nil {
+		panic(err)
+	}
+
+	r := gor.NewRouter(gor.WithTemplates(templ))
+
+	r.Get("/template", func(w http.ResponseWriter, req *http.Request) {
+		data := gor.Map{
+			"Title": "Template",
+			"Body":  "Welcome to the template page",
+		}
+
+		err := gor.Execute(w, req, "home.html", data)
+		if err != nil {
+			gor.SendError(w, req, err, http.StatusInternalServerError)
+		}
+
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/template", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	// check body
+	if !strings.Contains(w.Body.String(), "Welcome to the template page") {
+		t.Errorf("expected Welcome to the template page, got %s", w.Body.String())
+	}
+
+}
+
 func TestRouterFileFS(t *testing.T) {
 	dirname, err := os.MkdirTemp("", "assets")
 	if err != nil {
