@@ -4,41 +4,45 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha1"
-	"net"
-
 	"fmt"
 	"hash"
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/abiiranathan/gor/gor"
 )
 
-// etagResponseWriter is a wrapper around http.ResponseWriter that calculates the ETag
 type etagResponseWriter struct {
-	http.ResponseWriter              // Embedded to satisfy the interface
-	buf                 bytes.Buffer // Buffer to store the response
-	hash                hash.Hash    // Hash to calculate the ETag
-	w                   io.Writer    // MultiWriter (buf, hash)
+	http.ResponseWriter              // the original ResponseWriter
+	buf                 bytes.Buffer // buffer to store the response body
+	hash                hash.Hash    // hash to calculate the ETag
+	w                   io.Writer    // multiwriter to write to both the buffer and the hash
+	status              int          // status code of the response
+	written             bool         // whether the header has been written
 }
 
 func (e *etagResponseWriter) WriteHeader(code int) {
-	e.ResponseWriter.WriteHeader(code)
+	e.status = code
+	e.written = true
+	// Don't actually write the header yet, we'll do that later
 }
 
-// Writes the response to the buffer and the hash
 func (e *etagResponseWriter) Write(p []byte) (int, error) {
+	if !e.written {
+		// If WriteHeader was not explicitly called, we need to set the status
+		e.status = http.StatusOK
+		e.written = true
+	}
 	return e.w.Write(p)
 }
 
-// Flush implements the http.Flusher interface
 func (e *etagResponseWriter) Flush() {
 	if f, ok := e.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Hijack implements the http.Hijacker interface
 func (e *etagResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if h, ok := e.ResponseWriter.(http.Hijacker); ok {
 		return h.Hijack()
@@ -46,13 +50,10 @@ func (e *etagResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, http.ErrNotSupported
 }
 
-// New creates a new middleware handler that generates ETags for the response
-// and validates the If-Match and If-None-Match headers.
 func New(skip ...func(r *http.Request) bool) gor.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var skipEtag bool
-			// Skip the middleware if the request matches the skip conditions
 			for _, s := range skip {
 				if s(r) {
 					skipEtag = true
@@ -64,7 +65,6 @@ func New(skip ...func(r *http.Request) bool) gor.Middleware {
 				skipEtag = true
 			}
 
-			// Skip the middleware if the request matches the skip conditions
 			if skipEtag {
 				next.ServeHTTP(w, r)
 				return
@@ -74,36 +74,40 @@ func New(skip ...func(r *http.Request) bool) gor.Middleware {
 				ResponseWriter: w,
 				buf:            bytes.Buffer{},
 				hash:           sha1.New(),
+				status:         http.StatusOK,
 			}
-
 			ew.w = io.MultiWriter(&ew.buf, ew.hash)
 
-			// Call the next handler
 			next.ServeHTTP(ew, r)
 
-			rw := w.(*gor.ResponseWriter)
-			if rw.Status() != http.StatusOK {
-				ew.buf.WriteTo(w) // Write the buffer to the original response writer
-				return            // Don't generate ETags for invalid responses
+			if ew.status != http.StatusOK {
+				// For non-200 responses, write the status and body without ETag
+				w.WriteHeader(ew.status)
+				ew.buf.WriteTo(w)
+				return
 			}
 
-			etag := fmt.Sprintf("%x", ew.hash.Sum(nil))
+			etag := fmt.Sprintf(`"%x"`, ew.hash.Sum(nil))
 			w.Header().Set("ETag", etag)
 
-			// If-Match header validation.
+			// Check If-None-Match and If-Match headers and return 304 or 412 if needed
+			ifNoneMatch := r.Header.Get("If-None-Match")
+			if ifNoneMatch == etag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+
+			// If-Match is not supported for GET requests
 			ifMatch := r.Header.Get("If-Match")
 			if ifMatch != "" && ifMatch != etag {
+				// If-Match header is present and doesn't match the ETag
 				w.WriteHeader(http.StatusPreconditionFailed)
 				return
 			}
 
-			// If-None-Match header validation.
-			if r.Header.Get("If-None-Match") == etag {
-				w.WriteHeader(304)
-			} else {
-				// Write the buffer to the original response writer
-				ew.buf.WriteTo(w)
-			}
+			// Write the status and body for 200 OK responses
+			w.WriteHeader(ew.status)
+			ew.buf.WriteTo(w)
 		})
 	}
 }
