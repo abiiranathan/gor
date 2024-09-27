@@ -802,7 +802,18 @@ func (r *Router) ExecuteTemplate(w io.Writer, name string, data Map) error {
 	if r.template == nil {
 		panic("No template is configured")
 	}
-	return r.template.ExecuteTemplate(w, name, data)
+
+	// create a buffer to avoid writing directly to the response writer
+	// because if an error occurs, the response writer will have already been written to
+	// with partial data.
+	buf := new(bytes.Buffer)
+	err := r.template.ExecuteTemplate(buf, name, data)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(buf.Bytes())
+	return err
 }
 
 // ExecuteTemplate executes a standalone template without a layout.
