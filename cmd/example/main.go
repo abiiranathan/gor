@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"text/template"
 	"time"
 
@@ -37,7 +36,7 @@ func main() {
 	)
 
 	mux.Use(recovery.New(true))
-	mux.Use(logger.New(os.Stderr, logger.StdLogFlags, nil))
+	mux.Use(logger.New(logger.DefaultLogger))
 	mux.Use(etag.New())
 	mux.Use(cors.New())
 

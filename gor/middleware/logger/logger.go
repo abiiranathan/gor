@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"time"
 
@@ -15,8 +16,8 @@ type LogFormat int
 type LogFlags int8
 
 const (
-	TextFormat LogFormat = iota // This is the default format
-	JSONFormat                  // Log in JSON format
+	TextFormat LogFormat = iota + 1 // This is the default format
+	JSONFormat                      // Log in JSON format
 )
 
 const (
@@ -27,8 +28,8 @@ const (
 
 const StdLogFlags LogFlags = LOG_LATENCY | LOG_IP
 
-// LoggerMiddleware is a middleware that logs the request and response information.
-type LoggerMiddleware struct {
+// Config is a middleware that logs the request and response information.
+type Config struct {
 	Output  io.Writer
 	Format  LogFormat
 	Flags   LogFlags
@@ -40,30 +41,44 @@ type LoggerMiddleware struct {
 	Callback func(args ...any) []any
 }
 
-// New creates a new LoggerMiddleware writing to output.
-// Modify what is logged with a bit-mask of flags.
-// You can also pass a callback function that can modify the arguments passed to the logger.
-// If the callback is nil, the arguments are not modified. The args must be in key-value pairs.
-// as required by the slog package.
-// e.g args=append(args, "user_id", 100)
-func New(output io.Writer, flags LogFlags, callback func(args ...any) []any, skip ...string) gor.Middleware {
-	lm := &LoggerMiddleware{
-		Output:   output,
-		Format:   TextFormat,
-		Flags:    flags,
-		Skip:     skip,
-		Callback: callback,
-		Options: &slog.HandlerOptions{
-			Level:     slog.LevelInfo,
-			AddSource: false,
-		},
+// DefaultLogger is the default logger used by the Logger middleware.
+// It writes logs to os.Stderr with the TextFormat and StdLogFlags.
+// The log level is set to Info.
+var DefaultLogger = &Config{
+	Output: os.Stderr,
+	Format: TextFormat,
+	Flags:  StdLogFlags,
+	Options: &slog.HandlerOptions{
+		Level:     slog.LevelInfo,
+		AddSource: false,
+	},
+}
+
+func New(config *Config) gor.Middleware {
+	if config == nil {
+		config = DefaultLogger
 	}
 
-	return lm.Logger
+	if config.Output == nil {
+		config.Output = os.Stderr
+	}
+
+	if config.Format == 0 {
+		config.Format = TextFormat
+	}
+
+	if config.Options == nil {
+		config.Options = &slog.HandlerOptions{
+			Level:     slog.LevelInfo,
+			AddSource: false,
+		}
+	}
+
+	return config.Logger
 }
 
 // Logger is the middleware handler function for LoggerMiddleware.
-func (l *LoggerMiddleware) Logger(handler http.Handler) http.Handler {
+func (l *Config) Logger(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if slices.Contains(l.Skip, req.URL.Path) {
 			handler.ServeHTTP(w, req)
