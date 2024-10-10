@@ -30,10 +30,23 @@ const StdLogFlags LogFlags = LOG_LATENCY | LOG_IP
 
 // Config is a middleware that logs the request and response information.
 type Config struct {
-	Output  io.Writer
-	Format  LogFormat
-	Flags   LogFlags
-	Skip    []string
+	// Output is the destination for the log output. If nil, os.Stderr is used.
+	Output io.Writer
+
+	// Format is the format of the log output. Default is TextFormat.
+	Format LogFormat
+
+	// Flags is the flags to be used for logging. Default is StdLogFlags.
+	Flags LogFlags
+
+	// Skip is a slice of paths that should not be logged.
+	Skip []string
+
+	// SkipIf is a function that can be used to skip logging based on the request.
+	// If it returns true, the request will not be logged.
+	SkipIf func(r *http.Request) bool
+
+	// Options is the options to be passed to the slog.Handler.
 	Options *slog.HandlerOptions
 
 	// Callback is a function that can be used to modify the arguments passed to the logger.
@@ -81,6 +94,11 @@ func New(config *Config) gor.Middleware {
 func (l *Config) Logger(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if slices.Contains(l.Skip, req.URL.Path) {
+			handler.ServeHTTP(w, req)
+			return
+		}
+
+		if l.SkipIf != nil && l.SkipIf(req) {
 			handler.ServeHTTP(w, req)
 			return
 		}
