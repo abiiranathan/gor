@@ -34,16 +34,25 @@ type LoggerMiddleware struct {
 	Flags   LogFlags
 	Skip    []string
 	Options *slog.HandlerOptions
+
+	// Callback is a function that can be used to modify the arguments passed to the logger.
+	// Forexample the request_id, user_id etc.
+	Callback func(args ...any) []any
 }
 
 // New creates a new LoggerMiddleware writing to output.
 // Modify what is logged with a bit-mask of flags.
-func New(output io.Writer, flags LogFlags, skip ...string) gor.Middleware {
+// You can also pass a callback function that can modify the arguments passed to the logger.
+// If the callback is nil, the arguments are not modified. The args must be in key-value pairs.
+// as required by the slog package.
+// e.g args=append(args, "user_id", 100)
+func New(output io.Writer, flags LogFlags, callback func(args ...any) []any, skip ...string) gor.Middleware {
 	lm := &LoggerMiddleware{
-		Output: output,
-		Format: TextFormat,
-		Flags:  flags,
-		Skip:   skip,
+		Output:   output,
+		Format:   TextFormat,
+		Flags:    flags,
+		Skip:     skip,
+		Callback: callback,
 		Options: &slog.HandlerOptions{
 			Level:     slog.LevelInfo,
 			AddSource: false,
@@ -84,6 +93,18 @@ func (l *LoggerMiddleware) Logger(handler http.Handler) http.Handler {
 		if l.Flags&LOG_IP != 0 {
 			ipAddr, _ := gor.ClientIPAddress(req)
 			args = append(args, "ip", ipAddr)
+		}
+
+		if l.Flags&LOG_USERAGENT != 0 {
+			args = append(args, "user_agent", req.UserAgent())
+		}
+
+		if l.Callback != nil {
+			args = l.Callback(args...)
+
+			if len(args)%2 != 0 {
+				panic("Callback must return an even number of arguments")
+			}
 		}
 
 		logger.Info("", args...)

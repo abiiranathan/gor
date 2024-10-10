@@ -3,11 +3,11 @@ package gor
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -78,7 +78,8 @@ func SendError(w http.ResponseWriter, req *http.Request, err error, status ...in
 		statusCode = status[0]
 	}
 
-	fmt.Printf("[GOR ERROR]: %v\n", err)
+	// Print the error stack trace
+	debug.PrintStack()
 
 	// In case its htmx, return the error as is
 	isHtmx := req.Header.Get("HX-Request") == "true"

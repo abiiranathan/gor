@@ -37,7 +37,7 @@ func main() {
 	)
 
 	mux.Use(recovery.New(true))
-	mux.Use(logger.New(os.Stderr, logger.StdLogFlags))
+	mux.Use(logger.New(os.Stderr, logger.StdLogFlags, nil))
 	mux.Use(etag.New())
 	mux.Use(cors.New())
 
