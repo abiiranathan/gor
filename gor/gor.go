@@ -710,37 +710,52 @@ func (r *Router) RenderError(w http.ResponseWriter, err error, status ...int) {
 	r.renderErrorTemplate(w, err, status...)
 }
 
+var builderPool = sync.Pool{
+	New: func() interface{} {
+		return new(strings.Builder)
+	},
+}
+
 // =========== TEMPLATE FUNCTIONS ===========
 func (r *Router) renderTemplate(w io.Writer, name string, data Map) error {
-	// if name is missing the extension, add it(assume it's an html file)
+	// Get a builder from the pool
+	builder := builderPool.Get().(*strings.Builder)
+	defer func() {
+		builder.Reset()
+		builderPool.Put(builder)
+	}()
+
+	// Add extension only if necessary
 	if filepath.Ext(name) == "" {
-		name = name + ".html"
+		name += ".html"
 	}
 
-	buf := new(bytes.Buffer)
-	err := r.template.ExecuteTemplate(buf, name, data)
-	if err != nil {
+	// Execute the template into the pooled builder
+	if err := r.template.ExecuteTemplate(builder, name, data); err != nil {
 		log.Printf("Error rendering template: %s\n", err)
 		return err
 	}
 
-	content := buf.String()
+	// Update the data map with the rendered content
+	data[r.contentBlock] = template.HTML(builder.String())
 
-	finalBuf := new(bytes.Buffer)
-	data[r.contentBlock] = template.HTML(content)
-	err = r.template.ExecuteTemplate(finalBuf, r.baseLayout, data)
+	// Reset the builder for reuse
+	builder.Reset()
 
-	if err != nil {
+	// Execute the base template
+	if err := r.template.ExecuteTemplate(builder, r.baseLayout, data); err != nil {
 		log.Printf("Error rendering template: %s\n", err)
 		return err
 	}
 
+	// Set headers if possible
 	if writer, ok := w.(http.ResponseWriter); ok {
 		writer.Header().Set("Content-Type", ContentTypeHTML)
 		writer.WriteHeader(http.StatusOK)
 	}
 
-	_, err = w.Write(finalBuf.Bytes())
+	// Write the final content
+	_, err := io.WriteString(w, builder.String())
 	return err
 }
 
